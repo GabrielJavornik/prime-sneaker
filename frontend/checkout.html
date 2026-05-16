@@ -1,0 +1,1742 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Checkout - Prime Sneaker</title>
+    <link rel="stylesheet" href="css/style.css?v=31" />
+    <style>
+        .checkout-container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .checkout-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            margin-bottom: 1.5rem;
+            color: var(--text);
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 0.5rem;
+        }
+
+        .order-summary {
+            background: #f9f9f9;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1.5rem;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .summary-item:last-child {
+            border-bottom: none;
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--accent);
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 2px solid var(--accent);
+        }
+
+        .pix-info {
+            text-align: center;
+            padding: 2rem;
+            background: #f0f7ff;
+            border-radius: 8px;
+            border: 2px dashed var(--accent);
+        }
+
+        .qr-code {
+            width: 100%;
+            max-width: 250px;
+            margin: 1rem auto;
+            padding: 1rem;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .qr-code img {
+            width: 100%;
+            height: auto;
+        }
+
+        .pix-key {
+            background: white;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+            font-family: monospace;
+            font-size: 0.95rem;
+            word-break: break-all;
+            border: 1px solid var(--border);
+        }
+
+        .pix-key-label {
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .copy-button {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            margin-top: 1rem;
+            transition: background 0.3s;
+        }
+
+        .copy-button:hover {
+            background: var(--accent-dark);
+        }
+
+        .copy-button.copied {
+            background: var(--success);
+        }
+
+        .payment-status {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            text-align: center;
+            display: none;
+        }
+
+        .payment-status.pending {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffc107;
+        }
+
+        .payment-status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #28a745;
+            display: block;
+        }
+
+        .confirm-payment-btn {
+            background: var(--success);
+            color: white;
+            border: none;
+            padding: 1rem;
+            width: 100%;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 1.5rem;
+            transition: background 0.3s;
+        }
+
+        .confirm-payment-btn:hover {
+            background: #27ae60;
+        }
+
+        .confirm-payment-btn:disabled {
+            background: var(--muted);
+            cursor: not-allowed;
+        }
+
+        .pix-instructions {
+            background: #e8f4f8;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .instruction-step {
+            margin: 0.5rem 0;
+        }
+
+        .instruction-step strong {
+            color: var(--accent);
+        }
+
+        @media (max-width: 768px) {
+            .checkout-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="header-placeholder"></div>
+
+    <main>
+        <div id="checkout-content" class="checkout-container" style="max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 350px; gap: 2rem; padding: 2rem;">
+            <!-- ESQUERDA - FORMULÁRIO -->
+            <div>
+                <!-- CONTATO -->
+                <div class="checkout-section">
+                    <h2 class="section-title">Contato</h2>
+                    <div id="user-email" style="padding: 1rem; background: #f0f0f0; border-radius: 4px; font-size: 0.95rem;">
+                        Email será preenchido automaticamente
+                    </div>
+                </div>
+
+                <!-- ENTREGA -->
+                <div class="checkout-section">
+                    <h2 class="section-title">Entrega</h2>
+                    <div id="address-form">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                            <div>
+                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Nome <span style="color: var(--danger);">*</span></label>
+                                <input type="text" id="checkout-nome" placeholder="Nome" style="width: 100%; padding: 0.7rem; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Sobrenome <span style="color: var(--danger);">*</span></label>
+                                <input type="text" id="checkout-sobrenome" placeholder="Sobrenome" style="width: 100%; padding: 0.7rem; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem;">
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                            <div>
+                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">CPF <span style="color: var(--danger);">*</span></label>
+                                <input type="text" id="checkout-cpf" placeholder="000.000.000-00" style="width: 100%; padding: 0.7rem; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Telefone <span style="color: var(--danger);">*</span></label>
+                                <input type="text" id="checkout-telefone" placeholder="(00) 00000-0000" style="width: 100%; padding: 0.7rem; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem;">
+                            </div>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">CEP <span style="color: var(--danger);">*</span></label>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input type="text" id="checkout-cep" placeholder="00000-000" maxlength="9" style="flex: 1; padding: 0.7rem; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem;">
+                                <button type="button" onclick="buscarCepCheckout()" style="background: var(--accent); color: white; padding: 0.7rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">OK</button>
+                            </div>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Rua <span style="color: var(--danger);">*</span></label>
+                            <input type="text" id="checkout-rua" placeholder="Ex.: Rua das Flores" style="width: 100%; padding: 0.7rem; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem;">
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                            <div>
+                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Número <span style="color: var(--danger);">*</span></label>
+                                <input type="text" id="checkout-numero" placeholder="123" style="width: 100%; padding: 0.7rem; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Complemento</label>
+                                <input type="text" id="checkout-complemento" placeholder="Apt, Sala..." style="width: 100%; padding: 0.7rem; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem;">
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                            <div>
+                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Bairro <span style="color: var(--danger);">*</span></label>
+                                <input type="text" id="checkout-bairro" placeholder="Ex.: Centro" style="width: 100%; padding: 0.7rem; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Cidade / UF <span style="color: var(--danger);">*</span></label>
+                                <input type="text" id="checkout-cidade" placeholder="Ex.: Porto Alegre - RS" style="width: 100%; padding: 0.7rem; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MÉTODO DE ENVIO -->
+                <div class="checkout-section">
+                    <h2 class="section-title">Método de envio</h2>
+                    <div id="shipping-info-main" style="padding: 1rem; background: #f0f0f0; border-radius: 4px; font-size: 0.95rem;">
+                        Informe o CEP para calcular o prazo de entrega
+                    </div>
+                </div>
+
+                <!-- PAGAMENTO -->
+                <div class="checkout-section">
+                    <h2 class="section-title">Pagamento</h2>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 1rem; border: 2px solid var(--border); border-radius: 4px;">
+                            <input type="radio" name="payment-method" value="pix" checked onchange="togglePaymentMethod('pix')">
+                            PIX
+                        </label>
+
+                        <div id="pix-inline" style="display: block; padding: 1rem; background: #f0fff4; border-radius: 4px; border: 1px solid #cce5ff; margin-top: 1rem;">
+                            <h4 style="margin-bottom: 1rem; font-size: 0.95rem; font-weight: 700;">Como pagar com PIX</h4>
+                            <p style="font-size: 0.9rem; margin-bottom: 1rem; color: var(--muted);">Pague com o Pix e receba o pedido assim que o pagamento for compensado.</p>
+
+                            <!-- Instruções em 4 passos -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                <div style="text-align: center;">
+                                    <div style="width: 50px; height: 50px; background: #6366f1; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; margin: 0 auto 0.5rem;">1</div>
+                                    <p style="font-size: 0.85rem; line-height: 1.4;">Finalize a sua compra e abra o app do banco na opção Pix.</p>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="width: 50px; height: 50px; background: #6366f1; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; margin: 0 auto 0.5rem;">2</div>
+                                    <p style="font-size: 0.85rem; line-height: 1.4;">Aponte a câmera do celular para o QR Code ou copie e cole o código Pix.</p>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="width: 50px; height: 50px; background: #6366f1; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; margin: 0 auto 0.5rem;">3</div>
+                                    <p style="font-size: 0.85rem; line-height: 1.4;">Confira os dados e confirme o seu pagamento pelo app do Banco.</p>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="width: 50px; height: 50px; background: #6366f1; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; margin: 0 auto 0.5rem;">4</div>
+                                    <p style="font-size: 0.85rem; line-height: 1.4;">Envie o comprovante via WhatsApp para validarmos seu pedido.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TERMOS -->
+                <div class="checkout-section">
+                    <label style="display: flex; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="terms-agree" style="margin-top: 0.2rem;">
+                        <span style="font-size: 0.9rem;">Li e concordo com os <a href="termos-de-uso.html" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();" style="color: var(--accent); text-decoration: underline;">termos e condições</a> do site <span style="color: var(--danger);">*</span></span>
+                    </label>
+                </div>
+
+                <button onclick="processPayment()" style="width: 100%; padding: 1rem; background: var(--success); color: white; border: none; border-radius: 4px; font-weight: 700; font-size: 1.1rem; cursor: pointer; margin-bottom: 2rem;">
+                    Finalizar compra
+                </button>
+            </div>
+
+            <!-- DIREITA - RESUMO -->
+            <div>
+                <div class="checkout-section" style="position: sticky; top: 90px;">
+                    <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; text-align: center;">Resumo do pedido</h3>
+
+                    <div id="order-items-summary" style="margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem;"></div>
+
+                    <div style="margin-bottom: 0.75rem; display: flex; justify-content: space-between; font-size: 0.95rem;">
+                        <span>Subtotal</span>
+                        <span id="summary-subtotal">R$ 0,00</span>
+                    </div>
+
+                    <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; font-size: 0.95rem;">
+                        <span>Método de envio</span>
+                    </div>
+
+                    <div id="shipping-info-summary" style="padding: 1rem; background: #f0f0f0; border-radius: 4px; font-size: 0.8rem; line-height: 1.4; color: var(--muted); margin-bottom: 1rem;">
+                        Informe o CEP
+                    </div>
+
+                    <div style="border-top: 2px solid var(--accent); padding-top: 1rem; margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 1.1rem;">
+                            <span>Total</span>
+                            <span id="summary-total">R$ 0,00</span>
+                        </div>
+                    </div>
+
+                    <div id="pix-section" style="display: none; margin-top: 1rem; padding: 1rem; background: #f0f7ff; border-radius: 4px; border: 1px solid #cce5ff;">
+                        <div id="pix-loading" style="text-align: center; display: none; padding: 2rem;">
+                            <div class="loading"></div>
+                            <p>Gerando QR Code...</p>
+                        </div>
+
+                        <div id="pix-info" style="display: none;">
+                            <h4 style="margin-bottom: 1rem; font-size: 0.95rem; font-weight: 700;">Como pagar com PIX</h4>
+                            <p style="font-size: 0.9rem; margin-bottom: 1rem; color: var(--muted);">Pague com o Pix e receba o pedido assim que o pagamento for compensado.</p>
+
+                            <!-- Instruções em 4 passos -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                                <div style="text-align: center;">
+                                    <div style="width: 50px; height: 50px; background: #6366f1; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; margin: 0 auto 0.5rem;">1</div>
+                                    <p style="font-size: 0.85rem; line-height: 1.4;">Finalize a sua compra e abra o app do banco na opção Pix.</p>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="width: 50px; height: 50px; background: #6366f1; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; margin: 0 auto 0.5rem;">2</div>
+                                    <p style="font-size: 0.85rem; line-height: 1.4;">Aponte a câmera do celular para o QR Code ou copie e cole o código Pix.</p>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="width: 50px; height: 50px; background: #6366f1; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; margin: 0 auto 0.5rem;">3</div>
+                                    <p style="font-size: 0.85rem; line-height: 1.4;">Confiria os dados e confirme o seu pagamento pelo app do Banco.</p>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="width: 50px; height: 50px; background: #6366f1; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; margin: 0 auto 0.5rem;">4</div>
+                                    <p style="font-size: 0.85rem; line-height: 1.4;">Envie o comprovante via WhatsApp para validarmos seu pedido.</p>
+                                </div>
+                            </div>
+
+                            <!-- QR Code e Chave -->
+                            <div style="background: white; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+                                <p style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">Chave PIX (CPF)</p>
+                                <div id="pix-key-display" style="background: #f9f9f9; padding: 0.8rem; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 0.8rem; word-break: break-all; margin-bottom: 0.5rem;">03828643019</div>
+                                <button onclick="copyPixKey()" style="width: 100%; padding: 0.6rem; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 0.9rem;">Copiar Chave PIX</button>
+                            </div>
+
+                            <!-- Botão WhatsApp -->
+                            <button onclick="abrirWhatsApp()" style="width: 100%; padding: 0.8rem; background: #25D366; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                                Enviar Comprovante via WhatsApp
+                            </button>
+                        </div>
+
+                        <div id="success-message" style="display: none; padding: 1.5rem; text-align: center;">
+                            <div style="background: #d4edda; padding: 1.5rem; border-radius: 4px; color: #155724; border: 1px solid #28a745; margin-bottom: 1rem;">
+                                <h4 style="font-size: 1.1rem; margin: 0 0 0.5rem 0;">Pagamento Confirmado!</h4>
+                                <p style="font-size: 0.9rem; margin: 0;">Seu pedido foi criado com sucesso. Você receberá um email de confirmação.</p>
+                            </div>
+                            <a href="orders.html" style="display: inline-block; padding: 0.8rem 1.5rem; background: var(--success); color: white; border-radius: 4px; text-decoration: none; font-weight: 600;">Ver Meus Pedidos</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden sections para compatibilidade -->
+        <div id="login-required" style="display: none;">
+            <div class="alert alert-warning">
+                Você precisa estar logado para fazer checkout
+            </div>
+            <a href="login.html" class="btn-primary">Fazer Login</a>
+        </div>
+
+        <div id="payment-content" style="display: none;">
+                    <div id="payment-status" class="payment-status pending">
+                        Aguardando pagamento...
+                    </div>
+
+                    <div id="pix-loading" style="text-align: center; display: none;">
+                        <div class="loading"></div>
+                        <p>Gerando QR Code...</p>
+                    </div>
+
+                    <div id="pix-info" class="pix-info" style="display: none;">
+                        <h3>Escaneie o QR Code</h3>
+                        <p style="color: var(--muted); margin-bottom: 1rem;">
+                            Use o app do seu banco para pagar
+                        </p>
+
+                        <div class="qr-code">
+                            <img id="qr-code-img" src="" alt="QR Code PIX" />
+                        </div>
+
+                        <p style="font-size: 0.9rem; color: var(--muted); margin: 1rem 0;">
+                            Ou copie a chave PIX abaixo:
+                        </p>
+
+                        <div class="pix-key">
+                            <div class="pix-key-label">Chave PIX (CPF)</div>
+                            <div id="pix-key-display">03828643019</div>
+                        </div>
+
+                        <button class="copy-button" onclick="copyPixKey()">
+                            Copiar Chave PIX
+                        </button>
+
+                        <div class="pix-instructions">
+                            <div class="instruction-step">
+                                <strong>Passo 1:</strong> Abra o app do seu banco (Inter, Itaú, Bradesco, etc)
+                            </div>
+                            <div class="instruction-step">
+                                <strong>Passo 2:</strong> Escolha "Transferência via Pix"
+                            </div>
+                            <div class="instruction-step">
+                                <strong>Passo 3:</strong> Escaneie o QR Code ou copie a chave
+                            </div>
+                            <div class="instruction-step">
+                                <strong>Passo 4:</strong> Confira o valor preenchido automaticamente e confirme
+                            </div>
+                            <div class="instruction-step">
+                                <strong>Passo 5:</strong> Clique em "Confirmar Pagamento" após pagar
+                            </div>
+                        </div>
+
+                        <button class="confirm-payment-btn" onclick="confirmPayment()">
+                            Confirmar Pagamento e Enviar Comprovante
+                        </button>
+                        <p style="font-size: 0.85rem; color: var(--muted); margin-top: 1rem; text-align: center;">
+                            Você será redirecionado para o WhatsApp para enviar o comprovante
+                        </p>
+                    </div>
+
+                    <div id="success-message" style="display: none;">
+                        <div class="payment-status success">
+                            Pagamento Confirmado!
+                        </div>
+                        <p style="text-align: center; margin-top: 1rem;">
+                            Seu pedido foi criado com sucesso. Você receberá um email de confirmação.
+                        </p>
+                        <a href="orders.html" class="btn-primary" style="display: block; text-align: center; margin-top: 1rem;">
+                            Ver Meus Pedidos
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="footer-placeholder"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="js/notifications.js?v=2"></script>
+    <script src="js/cart-storage.js"></script>
+    <script src="js/cart.js?v=5"></script>
+    <script src="js/api.js?v=3"></script>
+    <script src="js/common.js?v=18"></script>
+    <style>
+        .custom-alert {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            z-index: 9999;
+            max-width: 450px;
+            width: 90%;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .custom-alert.erro {
+            border-top: 4px solid var(--danger);
+        }
+
+        .custom-alert.sucesso {
+            border-top: 4px solid #27ae60;
+        }
+
+        .custom-alert-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .custom-alert-icon {
+            font-size: 2rem;
+            min-width: 40px;
+        }
+
+        .custom-alert-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--primary);
+        }
+
+        .custom-alert-message {
+            color: var(--muted);
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .custom-alert-button {
+            width: 100%;
+            padding: 0.8rem;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+
+        .custom-alert-button:hover {
+            background: var(--accent-dark);
+        }
+
+        .alert-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 9998;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -60%);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%);
+            }
+        }
+    </style>
+    <script>
+        function mostrarAlertaCustomizado(mensagem, tipo = 'erro') {
+            const overlay = document.createElement('div');
+            overlay.className = 'alert-overlay';
+
+            const alert = document.createElement('div');
+            alert.className = `custom-alert ${tipo}`;
+
+            const icones = {
+                erro: '!',
+                sucesso: 'OK',
+                info: 'i'
+            };
+
+            const titulos = {
+                erro: 'Erro',
+                sucesso: 'Sucesso!',
+                info: 'Informação'
+            };
+
+            alert.innerHTML = `
+                <div class="custom-alert-header">
+                    <div class="custom-alert-icon">${icones[tipo]}</div>
+                    <div class="custom-alert-title">${titulos[tipo]}</div>
+                </div>
+                <div class="custom-alert-message">${mensagem}</div>
+                <button class="custom-alert-button" onclick="fecharAlerta()">OK</button>
+            `;
+
+            document.body.appendChild(overlay);
+            document.body.appendChild(alert);
+
+            window.alertAtivo = { overlay, alert };
+
+            // Fechar ao clicar no overlay
+            overlay.addEventListener('click', fecharAlerta);
+        }
+
+        function fecharAlerta() {
+            if (window.alertAtivo) {
+                window.alertAtivo.overlay.remove();
+                window.alertAtivo.alert.remove();
+                window.alertAtivo = null;
+            }
+        }
+    </script>
+    <script>
+        // O único método de pagamento disponível é PIX (a radio do PIX já
+        // nasce `checked` e os campos de cartão não existem no HTML).
+        // Iniciar como 'pix' evita que processPayment caia no ramo de cartão
+        // e tente ler .value de elementos nulos.
+        let currentPaymentMethod = 'pix';
+
+        async function copyTextWithFeedback(text, successMessage = 'Copiado com sucesso!') {
+            const clickEvent = window.event || null;
+            const btn = clickEvent?.currentTarget || clickEvent?.target || document.activeElement;
+            const originalText = btn && typeof btn.textContent === 'string'
+                ? btn.textContent.trim()
+                : '';
+
+            try {
+                await navigator.clipboard.writeText(text);
+
+                if (btn && typeof btn.textContent === 'string') {
+                    btn.textContent = 'Copiado!';
+                    btn.classList?.add('copied');
+                    setTimeout(() => {
+                        btn.textContent = originalText || 'Copiar';
+                        btn.classList?.remove('copied');
+                    }, 2000);
+                }
+
+                if (typeof toast === 'function') {
+                    toast(successMessage, 'success');
+                }
+            } catch (err) {
+                if (typeof toast === 'function') {
+                    toast('N\u00e3o foi poss\u00edvel copiar. Tente novamente.', 'error');
+                }
+            }
+        }
+
+        function togglePaymentMethod(method) {
+            currentPaymentMethod = method;
+            const cardPayment = document.getElementById('card-payment');
+            const pixInline = document.getElementById('pix-inline');
+
+            if (method === 'card') {
+                cardPayment.style.display = 'block';
+                pixInline.style.display = 'none';
+            } else {
+                cardPayment.style.display = 'none';
+                pixInline.style.display = 'block';
+            }
+        }
+
+        function copyPixKeyInline() {
+            const key = document.getElementById('pix-key-display-inline').textContent;
+            copyTextWithFeedback(key, 'Chave PIX copiada!');
+        }
+
+        function carregarDadosUsuario() {
+            const user = getLoggedUser();
+            if (user) {
+                const emailDiv = document.getElementById('user-email');
+                emailDiv.textContent = user.email || '';
+                document.getElementById('checkout-nome').value = (user.name || '').split(' ')[0] || '';
+                if (user.cpf) document.getElementById('checkout-cpf').value = user.cpf;
+                if (user.phone) document.getElementById('checkout-telefone').value = user.phone;
+            }
+        }
+
+        async function buscarCepCheckout() {
+            const cepInput = document.getElementById('checkout-cep');
+            const cep = cepInput.value.replace(/\D/g, '');
+
+            if (cep.length !== 8) {
+                Notifications.error('CEP deve ter 8 dígitos');
+                return;
+            }
+
+            // Limpa campos de endereco antes de buscar para garantir
+            // que dados do CEP anterior nao "sobrem" na tela
+            const ruaEl = document.getElementById('checkout-rua');
+            const bairroEl = document.getElementById('checkout-bairro');
+            const cidadeEl = document.getElementById('checkout-cidade');
+            if (ruaEl) ruaEl.value = '';
+            if (bairroEl) bairroEl.value = '';
+            if (cidadeEl) cidadeEl.value = '';
+
+            try {
+                // `no-store` evita que o browser devolva a resposta antiga em cache
+                const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`, { cache: 'no-store' });
+                const data = await res.json();
+
+                if (data.erro) {
+                    Notifications.error('CEP não encontrado');
+                    atualizarInfoEnvio();
+                    return;
+                }
+
+                if (ruaEl) ruaEl.value = data.logradouro || '';
+                if (bairroEl) bairroEl.value = data.bairro || '';
+                if (cidadeEl) cidadeEl.value = data.localidade ? `${data.localidade} - ${data.uf || ''}`.trim() : '';
+
+                atualizarInfoEnvio(); // recalcula prazo conforme regiao do CEP
+
+                // Se a ViaCEP nao retornou logradouro (comum em CEPs de centro),
+                // avisa o usuario para completar manualmente
+                if (!data.logradouro) {
+                    Notifications.info('CEP validado! Complete a rua manualmente.');
+                    if (ruaEl) ruaEl.focus();
+                } else {
+                    Notifications.success('CEP validado!');
+                }
+            } catch (err) {
+                console.error('Erro ao buscar CEP:', err);
+                Notifications.error('Erro ao buscar CEP');
+            }
+        }
+
+        // Mapeia o CEP a uma das regioes definidas em envio.html.
+        // Usa os 5 digitos da base do CEP (faixa oficial dos Correios)
+        // para evitar erros nos limites de estado (ex.: TO/RO caem em 70-79
+        // mas pertencem a regiao Norte, nao Centro-Oeste).
+        function getRegiaoPorCep(cep) {
+            const digitos = (cep || '').replace(/\D/g, '');
+            if (digitos.length < 5) return null;
+            const n = parseInt(digitos.substring(0, 5), 10);
+
+            // Sudeste: SP, RJ, ES, MG
+            if (n >= 1000  && n <= 39999) return 'sudeste';
+            // Nordeste: BA, SE, PE, AL, PB, RN, CE, PI, MA
+            if (n >= 40000 && n <= 65999) return 'nordeste';
+            // Norte: PA, AP, AM, RR, AC
+            if (n >= 66000 && n <= 69999) return 'norte';
+            // Centro-Oeste: DF, GO (parte alta)
+            if (n >= 70000 && n <= 76799) return 'centro-oeste';
+            // Norte: RO (parte baixa)
+            if (n >= 76800 && n <= 76999) return 'norte';
+            // Norte: TO
+            if (n >= 77000 && n <= 77999) return 'norte';
+            // Centro-Oeste: MT
+            if (n >= 78000 && n <= 78899) return 'centro-oeste';
+            // Norte: RO (parte alta)
+            if (n >= 78900 && n <= 78999) return 'norte';
+            // Centro-Oeste: MS
+            if (n >= 79000 && n <= 79999) return 'centro-oeste';
+            // Sul: PR, SC, RS (sede da loja — prazo mais curto)
+            if (n >= 80000 && n <= 99999) return 'sul';
+            return null;
+        }
+
+        const PRAZOS_REGIAO = {
+            'sul':          { label: 'Sul',          sep: '1 a 3',  entrega: '3 a 7'   },
+            'sudeste':      { label: 'Sudeste',      sep: '2 a 5',  entrega: '5 a 10'  },
+            'centro-oeste': { label: 'Centro-Oeste', sep: '3 a 7',  entrega: '7 a 15'  },
+            'nordeste':     { label: 'Nordeste',     sep: '5 a 10', entrega: '10 a 20' },
+            'norte':        { label: 'Norte',        sep: '10',     entrega: '15 a 35' },
+        };
+
+        function atualizarInfoEnvio() {
+            const cepEl = document.getElementById('checkout-cep');
+            const main = document.getElementById('shipping-info-main');
+            const summary = document.getElementById('shipping-info-summary');
+            if (!main || !summary) return;
+
+            const regiao = cepEl ? getRegiaoPorCep(cepEl.value) : null;
+
+            if (!regiao) {
+                main.innerHTML = 'Informe o CEP para calcular o prazo de entrega';
+                summary.innerHTML = 'Informe o CEP';
+                return;
+            }
+
+            const r = PRAZOS_REGIAO[regiao];
+            main.innerHTML = `<strong>FRETE GRÁTIS</strong> | Região: ${r.label} | Separação: ${r.sep} dias úteis | Entrega: ${r.entrega} dias úteis`;
+            summary.innerHTML = `<strong>FRETE GRÁTIS</strong><br>Região: ${r.label}<br>Separação: ${r.sep} dias úteis<br>Entrega: ${r.entrega} dias úteis`;
+        }
+
+        function copyPixKey() {
+            const key = document.getElementById('pix-key-display').textContent;
+            copyTextWithFeedback(key, 'Chave PIX copiada!');
+        }
+
+        function abrirWhatsApp() {
+            const whatsappNumber = '5554992026684';
+            const message = `Olá! Gostaria de enviar o comprovante do pagamento PIX para validar meu pedido. Qual é o melhor horário?`;
+            const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl, '_blank');
+        }
+
+        function validarCPF(cpf) {
+            cpf = cpf.replace(/\D/g, '');
+
+            if (cpf.length !== 11) return false;
+
+            // Verifica se todos os dígitos são iguais
+            if (/^(\d)\1{10}$/.test(cpf)) return false;
+
+            // Calcula primeiro dígito verificador
+            let soma = 0;
+            for (let i = 0; i < 9; i++) {
+                soma += parseInt(cpf.charAt(i)) * (10 - i);
+            }
+            let digito1 = 11 - (soma % 11);
+            if (digito1 > 9) digito1 = 0;
+
+            if (parseInt(cpf.charAt(9)) !== digito1) return false;
+
+            // Calcula segundo dígito verificador
+            soma = 0;
+            for (let i = 0; i < 10; i++) {
+                soma += parseInt(cpf.charAt(i)) * (11 - i);
+            }
+            let digito2 = 11 - (soma % 11);
+            if (digito2 > 9) digito2 = 0;
+
+            if (parseInt(cpf.charAt(10)) !== digito2) return false;
+
+            return true;
+        }
+
+        let _processandoPagamento = false;
+
+        async function processPayment() {
+            // Evita cliques duplos enquanto o backend ainda esta criando o pedido
+            if (_processandoPagamento) {
+                return;
+            }
+
+            const btnFinalizar = document.querySelector('button[onclick="processPayment()"]');
+            const textoOriginalBotao = btnFinalizar ? btnFinalizar.textContent : null;
+
+            try {
+                _processandoPagamento = true;
+                if (btnFinalizar) {
+                    btnFinalizar.disabled = true;
+                    btnFinalizar.style.opacity = '0.7';
+                    btnFinalizar.style.cursor = 'wait';
+                    btnFinalizar.textContent = 'Processando...';
+                }
+
+                const termsCheckbox = document.getElementById('terms-agree');
+                if (!termsCheckbox || !termsCheckbox.checked) {
+                    mostrarAlertaCustomizado('Você precisa concordar com os termos e condições', 'erro');
+                    return;
+                }
+
+                const nome = document.getElementById('checkout-nome').value.trim();
+                const cpfInput = document.getElementById('checkout-cpf').value;
+                const numero = document.getElementById('checkout-numero').value.trim();
+                const rua = document.getElementById('checkout-rua').value.trim();
+                const bairro = document.getElementById('checkout-bairro').value.trim();
+                const cidade = document.getElementById('checkout-cidade').value.trim();
+                const cep = document.getElementById('checkout-cep').value.replace(/\D/g, '');
+                if (!nome) {
+                    mostrarAlertaCustomizado('Preencha o campo Nome', 'erro');
+                    return;
+                }
+
+                if (!cpfInput) {
+                    mostrarAlertaCustomizado('Preencha o CPF', 'erro');
+                    return;
+                }
+
+                if (!validarCPF(cpfInput)) {
+                    mostrarAlertaCustomizado('CPF inválido - Verifique os dígitos e tente novamente', 'erro');
+                    return;
+                }
+
+                if (!cep || cep.length !== 8) {
+                    mostrarAlertaCustomizado('CEP inválido - deve ter 8 dígitos', 'erro');
+                    return;
+                }
+
+                if (!rua) {
+                    mostrarAlertaCustomizado('Preencha o campo Rua (primeiro valide o CEP)', 'erro');
+                    return;
+                }
+
+                if (!bairro) {
+                    mostrarAlertaCustomizado('Preencha o campo Bairro', 'erro');
+                    return;
+                }
+
+                if (!cidade) {
+                    mostrarAlertaCustomizado('Preencha o campo Cidade / UF', 'erro');
+                    return;
+                }
+
+                if (!numero) {
+                    mostrarAlertaCustomizado('Preencha o campo Número', 'erro');
+                    return;
+                }
+
+                if (currentPaymentMethod === 'card') {
+                    const cardNumber = document.getElementById('card-number').value.replace(/\s/g, '');
+                    const cardName = document.getElementById('card-name').value.trim();
+                    const cardMonth = document.getElementById('card-month').value;
+                    const cardYear = document.getElementById('card-year').value;
+                    const cardCvv = document.getElementById('card-cvv').value;
+
+                    if (!cardNumber || !cardName || !cardMonth || !cardYear || !cardCvv) {
+                        mostrarAlertaCustomizado('Preencha todos os dados do cartão', 'erro');
+                        return;
+                    }
+
+                    // Persiste o pedido no banco antes de "confirmar" (cartao = mock).
+                    // Sem isso, o admin nao via o pedido aparecer na lista.
+                    salvarEnderecoLocalStorage();
+                    const okCard = await criarPedidoBackend();
+                    if (!okCard) return;
+
+                    mostrarAlertaCustomizado('Pagamento processado com sucesso!', 'sucesso');
+                    setTimeout(() => {
+                        fecharAlerta();
+                        confirmarPedido();
+                    }, 1000);
+                } else {
+                    // PIX — primeiro persiste o pedido no backend (status
+                    // aguardando_pagamento) para que o admin possa ver/confirmar.
+                    // Antes esse passo so existia para o cartao, e o pedido PIX
+                    // nunca era criado de verdade.
+                    salvarEnderecoLocalStorage();
+                    const okPix = await criarPedidoBackend();
+                    if (!okPix) return;
+                    window._pixData = await buscarPixDoPedido(currentOrderId);
+                    mostrarPaginaPagamentoPix();
+                }
+            } catch (err) {
+                console.error('[checkout] Erro em processPayment:', err);
+                mostrarAlertaCustomizado('Erro ao processar pagamento: ' + err.message, 'erro');
+            } finally {
+                // Sempre reabilita o botao no fim — ate em validacoes falhas,
+                // senao o usuario fica preso com o botao desabilitado.
+                _processandoPagamento = false;
+                if (btnFinalizar && textoOriginalBotao !== null) {
+                    btnFinalizar.disabled = false;
+                    btnFinalizar.style.opacity = '';
+                    btnFinalizar.style.cursor = 'pointer';
+                    btnFinalizar.textContent = textoOriginalBotao;
+                }
+            }
+        }
+
+        // Cria o pedido no backend usando os totais carregados em loadCheckout.
+        // Retorna true se persistiu (ou reusou um pendente), false se falhou.
+        // Centraliza a logica que antes ficava espalhada entre loadCheckout
+        // (criava no load, errado) e processPayment (so mostrava PIX, sem persistir).
+        async function criarPedidoBackend() {
+            // Se loadCheckout nao rodou, tenta usar o carrinho direto + totais zerados
+            // (improvavel mas evita travar)
+            let data = window._checkoutData;
+            if (!data || !Array.isArray(data.cart) || data.cart.length === 0) {
+                const cartFallback = (typeof Cart !== 'undefined') ? Cart.getItems() : [];
+                if (!cartFallback.length) {
+                    Notifications.error('Carrinho vazio. Volte para o carrinho e tente novamente.');
+                    return false;
+                }
+                const subtotalFallback = cartFallback.reduce((s, i) => s + (Number(i.price) || 0) * i.quantity, 0);
+                data = {
+                    cart: cartFallback,
+                    subtotal: subtotalFallback,
+                    shipping: 0,
+                    discount: 0,
+                    total: subtotalFallback,
+                    couponCode: null,
+                };
+                console.warn('[checkout] _checkoutData nao encontrado, usando fallback do carrinho');
+            }
+
+            // Reaproveita pedido pendente se for o mesmo carrinho (evita duplicar)
+            try {
+                const pending = JSON.parse(localStorage.getItem(PENDING_ORDER_KEY) || 'null');
+                const sig = cartSignature(data.cart);
+                if (pending && pending.userId === user.id && pending.signature === sig && pending.orderId) {
+                    currentOrderId = pending.orderId;
+                    return true;
+                }
+            } catch (_) { /* segue criando */ }
+
+            try {
+                const orderId = await createOrder(data.cart, data.subtotal, data.shipping, data.discount, data.total, data.couponCode);
+                return !!orderId;
+            } catch (err) {
+                console.error('[checkout] Erro ao criar pedido:', err);
+                Notifications.error('Erro ao criar pedido: ' + err.message);
+                return false;
+            }
+        }
+
+        async function buscarPixDoPedido(orderId) {
+            const token = sessionStorage.getItem('token');
+            const response = await fetch(`/api/payments/pix/${orderId}`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Erro ao gerar PIX com valor do pedido');
+            }
+
+            return response.json();
+        }
+
+        function mostrarPaginaPagamentoPix() {
+            const main = document.querySelector('main');
+            const pixData = window._pixData || {};
+            const pixCode = pixData.copiaECola || pixData.emvString || '';
+            const pixValue = Number(pixData.valor || 0);
+            const safeQrCode = safeImageSrc(pixData.qrCode || '', 'https://via.placeholder.com/300?text=PIX');
+
+            main.innerHTML = `
+                <div style="text-align: center; padding: 3rem; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: var(--primary); margin-bottom: 1rem; font-size: 1.8rem;">Obrigado por confiar na Prime Sneaker!</h2>
+                    <p style="color: var(--muted); margin-bottom: 1rem; font-size: 1rem;">Escaneie o QR Code ou copie o Pix Copia e Cola abaixo. O valor ja vai abrir definido no app do banco.</p>
+                    <div style="background: #fff8e1; border: 1px solid #f0c040; color: #7a5a00; padding: 1rem; border-radius: 8px; margin-bottom: 2rem; font-weight: 700;">
+                        Valor do PIX: ${formatBRL(pixValue)}
+                    </div>
+
+                    <!-- QR Code -->
+                    <div style="background: white; padding: 2rem; border-radius: 8px; margin-bottom: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <p style="font-size: 0.9rem; color: var(--muted); margin-bottom: 1rem; font-weight: 600;">Escaneie com seu celular</p>
+                        <img src="${escapeAttribute(safeQrCode)}" alt="QR Code PIX" style="width: 100%; max-width: 300px; height: auto; margin: 0 auto; background: white; padding: 1rem; border-radius: 8px;">
+                    </div>
+
+                    <!-- Chave PIX -->
+                    <div style="background: #f0f0f0; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
+                        <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem; font-weight: 600;">OU COPIE O PIX COPIA E COLA COM VALOR</p>
+                        <div id="pix-key-copy" style="background: white; padding: 1.2rem; border-radius: 4px; font-family: monospace; font-size: 0.82rem; font-weight: 600; margin-bottom: 1rem; word-break: break-all; border: 2px solid var(--border); color: var(--primary); max-height: 150px; overflow-y: auto;">${escapeHTML(pixCode)}</div>
+                        <button onclick="copiarChavePixDinamica()" style="width: 100%; padding: 0.8rem; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 0.95rem; margin-bottom: 1rem;">
+                            Copiar Código PIX
+                        </button>
+                    </div>
+
+                    <!-- Botão Pagamento Realizado -->
+                    <button onclick="irParaWhatsAppComProvante()" style="width: 100%; padding: 1.2rem; background: var(--success); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 700; font-size: 1.1rem; transition: background 0.2s;">
+                        Pagamento Realizado
+                    </button>
+
+                    <p style="color: var(--muted); font-size: 0.85rem; margin-top: 1.5rem;">Clique em "Pagamento Realizado" quando concluir a transferência PIX</p>
+                </div>
+            `;
+
+            // Gerar QR Code após renderizar
+            setTimeout(() => {
+                const qrcodeDiv = document.getElementById('qrcode');
+                if (!qrcodeDiv || !window.QRCode) return;
+                if (qrcodeDiv) {
+                    qrcodeDiv.innerHTML = ''; // Limpar conteúdo anterior
+                    new QRCode(qrcodeDiv, {
+                        text: pixCode,
+                        width: 250,
+                        height: 250,
+                        colorDark: '#000000',
+                        colorLight: '#ffffff',
+                        correctLevel: QRCode.CorrectLevel.H
+                    });
+                }
+            }, 100);
+        }
+
+        function copiarChavePixDinamica() {
+            const key = document.getElementById('pix-key-copy').textContent;
+            copyTextWithFeedback(key, 'C\u00f3digo PIX copiado!');
+        }
+
+        function copiarChavePix() {
+            const key = '03828643019';
+            copyTextWithFeedback(key, 'Chave PIX copiada!');
+        }
+
+        function irParaWhatsAppComProvante() {
+            try {
+                // Limpar carrinho pois a compra foi realizada
+                Cart.clear();
+                // Limpar cupom aplicado para não reaplicar em uma próxima compra.
+                try { localStorage.removeItem('applied_coupon'); } catch (_) {}
+
+                const whatsappNumber = '5554992026684';
+                const message = `Olá! Realizo o pagamento PIX e gostaria de enviar o comprovante para validação do meu pedido.`;
+                const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+
+                // Mostrar página de sucesso antes de abrir WhatsApp
+                const main = document.querySelector('main');
+                main.innerHTML = `
+                    <div style="text-align: center; padding: 3rem; max-width: 600px; margin: 0 auto;">
+                        <h2 style="color: var(--success); margin-bottom: 1rem; font-size: 1.8rem;">Pedido Realizado!</h2>
+                        <p style="color: var(--muted); margin-bottom: 2rem; font-size: 1rem;">Seu pedido foi criado com sucesso. Agora envie o comprovante do PIX via WhatsApp.</p>
+                        <p style="color: var(--primary); margin-bottom: 2rem; font-weight: 600;">Aguarde o redirecionamento...</p>
+                    </div>
+                `;
+
+                // Redirecionar para WhatsApp após 2 segundos
+                setTimeout(() => {
+                    window.open(whatsappUrl, '_blank');
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 3000);
+                }, 2000);
+            } catch (err) {
+                console.error('Erro em irParaWhatsAppComProvante:', err);
+                mostrarAlertaCustomizado('Erro ao processar: ' + err.message, 'erro');
+            }
+        }
+
+        async function gerarPedidoEPix() {
+            const cart = Cart.getItems();
+            if (!cart || cart.length === 0) {
+                Notifications.error('Carrinho vazio');
+                return;
+            }
+
+            const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const shipping = 0;
+            const discount = 0;
+            const total = subtotal + shipping - discount;
+
+            const cep = document.getElementById('checkout-cep').value.replace(/\D/g, '');
+            const numero = document.getElementById('checkout-numero').value.trim();
+            const rua = document.getElementById('checkout-rua').value.trim();
+            const complemento = document.getElementById('checkout-complemento').value.trim();
+
+            try {
+                const token = sessionStorage.getItem('token');
+                const response = await fetch('/api/payments/checkout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        subtotal,
+                        shipping,
+                        discount,
+                        total,
+                        address: {
+                            cep,
+                            numero,
+                            rua,
+                            complemento,
+                        },
+                        items: cart.map(item => ({
+                            productId: item.productId,
+                            name: item.name,
+                            price: Number(item.price),
+                            quantity: item.quantity,
+                            size: item.size || null,
+                            lineTotal: Number(item.price) * item.quantity,
+                        })),
+                    }),
+                });
+
+                if (!response.ok) throw new Error('Erro ao criar pedido');
+
+                const data = await response.json();
+                const pixSection = document.getElementById('pix-section');
+                const pixLoading = document.getElementById('pix-loading');
+                const pixInfo = document.getElementById('pix-info');
+
+                pixLoading.style.display = 'block';
+                pixInfo.style.display = 'none';
+                pixSection.style.display = 'block';
+
+                // Aqui você carregaria o QR code real
+                setTimeout(() => {
+                    pixLoading.style.display = 'none';
+                    pixInfo.style.display = 'block';
+                    Notifications.success('QR Code gerado!');
+                }, 500);
+            } catch (err) {
+                Notifications.error('Erro: ' + err.message);
+            }
+        }
+
+        function confirmarPedido() {
+            // Salvar endereço antes de limpar o carrinho
+            salvarEnderecoLocalStorage();
+
+            Cart.clear();
+            document.querySelector('main').innerHTML = `
+                <div style="text-align: center; padding: 3rem;">
+                    <h2 style="color: var(--success); margin-bottom: 1rem;">Pedido Confirmado!</h2>
+                    <p style="margin-bottom: 2rem;">Seu pedido foi criado com sucesso. Você receberá um email de confirmação.</p>
+                    <a href="orders.html" class="btn-primary" style="display: inline-block; padding: 1rem 2rem; text-decoration: none;">Ver Meus Pedidos</a>
+                </div>
+            `;
+        }
+
+        // Chave do endereco salvo no localStorage e SCOPED por usuario.
+        // Sem isso, o endereco preenchido por um usuario vazaria para outro
+        // que entrasse depois no mesmo navegador.
+        function getEnderecoStorageKey() {
+            const u = getLoggedUser();
+            return u && u.id ? `endereco_salvo_${u.id}` : null;
+        }
+
+        function salvarEnderecoLocalStorage() {
+            try {
+                const key = getEnderecoStorageKey();
+                if (!key) return;
+                const nomeEl = document.getElementById('checkout-nome');
+                const sobrenomeEl = document.getElementById('checkout-sobrenome');
+                const cpfEl = document.getElementById('checkout-cpf');
+                const telefoneEl = document.getElementById('checkout-telefone');
+                const cepEl = document.getElementById('checkout-cep');
+                const numeroEl = document.getElementById('checkout-numero');
+                const ruaEl = document.getElementById('checkout-rua');
+                const bairroEl = document.getElementById('checkout-bairro');
+                const cidadeEl = document.getElementById('checkout-cidade');
+                const complementoEl = document.getElementById('checkout-complemento');
+
+                if (!nomeEl || !cepEl) {
+                    console.warn('Elementos do formulário não encontrados');
+                    return;
+                }
+
+                const endereco = {
+                    nome: nomeEl.value.trim(),
+                    sobrenome: sobrenomeEl ? sobrenomeEl.value.trim() : '',
+                    cpf: cpfEl ? cpfEl.value.trim() : '',
+                    telefone: telefoneEl ? telefoneEl.value.trim() : '',
+                    cep: cepEl.value.trim(),
+                    numero: numeroEl ? numeroEl.value.trim() : '',
+                    rua: ruaEl ? ruaEl.value.trim() : '',
+                    bairro: bairroEl ? bairroEl.value.trim() : '',
+                    cidade: cidadeEl ? cidadeEl.value.trim() : '',
+                    complemento: complementoEl ? complementoEl.value.trim() : ''
+                };
+
+                localStorage.setItem(key, JSON.stringify(endereco));
+                // Remove a chave antiga (compartilhada) para nao vazar entre contas
+                localStorage.removeItem('endereco_salvo');
+            } catch (err) {
+                console.error('Erro ao salvar endereço:', err);
+            }
+        }
+
+        function carregarEnderecoSalvo() {
+            try {
+                const key = getEnderecoStorageKey();
+                if (!key) return;
+                // Limpa qualquer chave compartilhada legada
+                localStorage.removeItem('endereco_salvo');
+                const endereco = JSON.parse(localStorage.getItem(key) || 'null');
+                if (endereco) {
+                    const campos = {
+                        'checkout-nome': endereco.nome,
+                        'checkout-sobrenome': endereco.sobrenome,
+                        'checkout-cpf': endereco.cpf,
+                        'checkout-telefone': endereco.telefone,
+                        'checkout-cep': endereco.cep,
+                        'checkout-numero': endereco.numero,
+                        'checkout-rua': endereco.rua,
+                        'checkout-bairro': endereco.bairro,
+                        'checkout-cidade': endereco.cidade,
+                        'checkout-complemento': endereco.complemento
+                    };
+
+                    for (const [id, valor] of Object.entries(campos)) {
+                        const el = document.getElementById(id);
+                        if (el && valor) {
+                            el.value = valor;
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Erro ao carregar endereço:', err);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = getLoggedUser();
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            carregarDadosUsuario();
+            carregarEnderecoSalvo();
+            atualizarInfoEnvio(); // se ja temos CEP salvo, mostra prazo da regiao
+
+            // Mascara CEP + atualizacao em tempo real do prazo de envio
+            const cepInput = document.getElementById('checkout-cep');
+            if (cepInput) {
+                // Guarda o ultimo CEP buscado para evitar refetch desnecessario
+                // (ex.: usuario clica OK varias vezes no mesmo CEP).
+                let ultimoCepBuscado = '';
+
+                cepInput.addEventListener('input', (e) => {
+                    let v = e.target.value.replace(/\D/g, '');
+                    if (v.length > 5) v = v.substring(0, 5) + '-' + v.substring(5, 8);
+                    e.target.value = v;
+                    atualizarInfoEnvio();
+
+                    // Dispara a busca automaticamente quando CEP completa 8 digitos
+                    // (digitando ou colando). Sem isso, o usuario precisa clicar OK
+                    // — e se ele so colar o CEP e sair do campo, nada muda.
+                    const digitos = v.replace(/\D/g, '');
+                    if (digitos.length === 8 && digitos !== ultimoCepBuscado) {
+                        ultimoCepBuscado = digitos;
+                        buscarCepCheckout();
+                    }
+                });
+
+                // Fallback: ao sair do campo, se ainda nao buscou esse CEP, busca agora
+                cepInput.addEventListener('blur', () => {
+                    const digitos = cepInput.value.replace(/\D/g, '');
+                    if (digitos.length === 8 && digitos !== ultimoCepBuscado) {
+                        ultimoCepBuscado = digitos;
+                        buscarCepCheckout();
+                    }
+                });
+
+                // Handler do paste: garante que o valor colado passe pela mascara e busca
+                cepInput.addEventListener('paste', () => {
+                    // O evento paste roda ANTES do valor ser atualizado; um setTimeout 0
+                    // deixa o browser aplicar o paste, entao reusamos a logica do input.
+                    setTimeout(() => {
+                        let v = cepInput.value.replace(/\D/g, '');
+                        if (v.length > 5) v = v.substring(0, 5) + '-' + v.substring(5, 8);
+                        cepInput.value = v;
+                        const digitos = v.replace(/\D/g, '');
+                        atualizarInfoEnvio();
+                        if (digitos.length === 8 && digitos !== ultimoCepBuscado) {
+                            ultimoCepBuscado = digitos;
+                            buscarCepCheckout();
+                        }
+                    }, 0);
+                });
+            }
+
+            // Mascara CPF
+            const cpfInput = document.getElementById('checkout-cpf');
+            if (cpfInput) {
+                cpfInput.addEventListener('input', (e) => {
+                    let v = e.target.value.replace(/\D/g, '');
+                    if (v.length > 11) v = v.substring(0, 11);
+                    if (v.length >= 3) v = v.substring(0, 3) + '.' + v.substring(3);
+                    if (v.length >= 7) v = v.substring(0, 7) + '.' + v.substring(7);
+                    if (v.length >= 11) v = v.substring(0, 11) + '-' + v.substring(11);
+                    e.target.value = v;
+                });
+            }
+
+            // Mascara Telefone
+            const telefoneInput = document.getElementById('checkout-telefone');
+            if (telefoneInput) {
+                telefoneInput.addEventListener('input', (e) => {
+                    let v = e.target.value.replace(/\D/g, '');
+                    if (v.length > 11) v = v.substring(0, 11);
+                    if (v.length >= 2) v = '(' + v.substring(0, 2) + ') ' + v.substring(2);
+                    if (v.length >= 10) v = v.substring(0, 10) + '-' + v.substring(10);
+                    e.target.value = v;
+                });
+            }
+
+            // Mascara cartão
+            const cardNumber = document.getElementById('card-number');
+            if (cardNumber) {
+                cardNumber.addEventListener('input', (e) => {
+                    let v = e.target.value.replace(/\s/g, '');
+                    if (v.length > 16) v = v.substring(0, 16);
+                    v = v.replace(/(\d{4})/g, '$1 ').trim();
+                    e.target.value = v;
+                });
+            }
+
+            loadCheckout();
+        });
+
+        function loadCheckout() {
+            const cart = Cart.getItems();
+            if (!cart || cart.length === 0) {
+                window.location.href = 'cart.html';
+                return;
+            }
+
+            const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const shipping = 0;
+            const discount = 0;
+            const total = subtotal + shipping - discount;
+
+            document.getElementById('summary-subtotal').textContent = formatBRL(subtotal);
+            document.getElementById('summary-total').textContent = formatBRL(total);
+
+            const itemsHtml = cart.map(item => `
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);">
+                    <img src="${escapeAttribute(safeImageSrc(item.image_url || '', 'https://via.placeholder.com/50'))}" alt="${escapeAttribute(item.name || 'Produto')}" loading="lazy" decoding="async" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
+                    <div style="flex: 1; font-size: 0.85rem;">
+                        <div style="font-weight: 600;">${escapeHTML(item.name || 'Produto')}</div>
+                        <div style="color: var(--muted);">× ${item.quantity}</div>
+                    </div>
+                    <div style="font-weight: 600;">${formatBRL(item.price * item.quantity)}</div>
+                </div>
+            `).join('');
+
+            document.getElementById('order-items-summary').innerHTML = itemsHtml;
+        }
+    </script>
+    <script>
+        const user = getLoggedUser();
+        const loginRequired = document.getElementById('login-required');
+        const checkoutContent = document.getElementById('checkout-content');
+        const paymentContent = document.getElementById('payment-content');
+        const pixLoading = document.getElementById('pix-loading');
+        const pixInfo = document.getElementById('pix-info');
+        let currentOrderId = null;
+
+        if (!user) {
+            loginRequired.style.display = 'block';
+            checkoutContent.style.display = 'none';
+            paymentContent.style.display = 'none';
+
+            // Após fazer login, recarregar e manter carrinho
+            window.addEventListener('storage', () => {
+                const loggedUser = getLoggedUser();
+                if (loggedUser) {
+                    location.reload();
+                }
+            });
+        } else {
+            loginRequired.style.display = 'none';
+            verificarDadosEIniciar();
+        }
+
+        const PENDING_ORDER_KEY = 'pending_order';
+
+        function cartSignature(cart) {
+            return JSON.stringify(cart.map(i => ({ p: i.productId, s: i.size || null, q: i.quantity })));
+        }
+
+        // Camada extra: impede acesso direto ao checkout sem CEP/CPF/Telefone
+        async function verificarDadosEIniciar() {
+            try {
+                const token = sessionStorage.getItem('token');
+                const resp = await fetch('/api/users/profile', {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+                const perfil = resp.ok ? await resp.json() : null;
+
+                const cpf = (perfil && perfil.cpf || '').replace(/\D/g, '');
+                const phone = (perfil && perfil.phone || '').replace(/\D/g, '');
+                const cepSalvo = JSON.parse(localStorage.getItem('cep_entrega') || 'null');
+
+                const faltando = [];
+                if (!cepSalvo || !cepSalvo.cep) faltando.push('CEP');
+
+                if (faltando.length > 0) {
+                    checkoutContent.style.display = 'none';
+                    paymentContent.style.display = 'none';
+                    const mainContainer = document.querySelector('.checkout-container');
+                    if (mainContainer) {
+                        mainContainer.innerHTML = `
+                            <div style="grid-column: 1 / -1; background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center;">
+                                <h2 style="color: var(--danger, #DC2626); margin-bottom: 1rem;">Dados incompletos</h2>
+                                <p style="margin-bottom: 1rem;">
+                                    Para finalizar a compra, voc\u00ea precisa preencher:
+                                </p>
+                                <p style="font-weight: 600; color: var(--accent); font-size: 1.1rem; margin-bottom: 2rem;">
+                                    ${faltando.join(', ')}
+                                </p>
+                                ${faltando.includes('CEP') ? `
+                                    <a href="cart.html" class="btn-primary" style="display: inline-block; padding: 0.8rem 1.5rem; margin: 0 0.5rem; text-decoration: none;">
+                                        Voltar ao Carrinho
+                                    </a>
+                                ` : ''}
+                            </div>
+                        `;
+                    }
+                    return;
+                }
+
+                loadCheckout();
+            } catch (err) {
+                console.error('Erro ao verificar dados:', err);
+                // Em caso de erro na verificacao, ainda redireciona para perfil por seguranca
+                Notifications.error('N\u00e3o foi poss\u00edvel verificar seus dados. Complete seu perfil.');
+                setTimeout(() => { window.location.href = 'profile.html'; }, 2000);
+            }
+        }
+
+        async function loadCheckout() {
+            try {
+                const cart = Cart.getItems();
+                if (!cart || cart.length === 0) {
+                    window.location.href = 'cart.html';
+                    return;
+                }
+
+                // Ler cupom aplicado no carrinho (salvo por cart-page.js em finalizar()).
+                const couponCode = (localStorage.getItem('applied_coupon') || '').trim() || null;
+
+                // Pedir ao backend os totais REAIS (aplicando cupom, se houver).
+                // Assim garantimos que o desconto calculado no carrinho chegue
+                // até a criação do pedido — antes, o checkout recalculava
+                // localmente com desconto = 0 e perdia o cupom.
+                const payloadItems = cart.map(item => ({
+                    productId: item.productId,
+                    quantity: item.quantity,
+                    size: item.size || null,
+                }));
+
+                let subtotal, shipping, discount, total, appliedCoupon = null;
+                try {
+                    const resp = await API.checkout(payloadItems, couponCode || undefined);
+                    subtotal = Number(resp.subtotal) || 0;
+                    shipping = Number(resp.shipping) || 0;
+                    discount = Number(resp.discount) || 0;
+                    total = Number(resp.total) || (subtotal + shipping - discount);
+                    appliedCoupon = resp.coupon || null;
+                } catch (err) {
+                    // Se o cupom for rejeitado (ex.: expirou entre o carrinho e o checkout),
+                    // recalcular sem cupom em vez de travar o checkout.
+                    if (couponCode) {
+                        Notifications.warning('Cupom não pôde ser aplicado: ' + err.message);
+                        localStorage.removeItem('applied_coupon');
+                        const resp = await API.checkout(payloadItems);
+                        subtotal = Number(resp.subtotal) || 0;
+                        shipping = Number(resp.shipping) || 0;
+                        discount = Number(resp.discount) || 0;
+                        total = Number(resp.total) || (subtotal + shipping - discount);
+                    } else {
+                        throw err;
+                    }
+                }
+
+                // Atualizar resumo
+                document.getElementById('summary-subtotal').textContent = formatBRL(subtotal);
+                if (document.getElementById('summary-shipping')) {
+                    document.getElementById('summary-shipping').textContent = formatBRL(shipping);
+                }
+                if (document.getElementById('summary-discount')) {
+                    document.getElementById('summary-discount').textContent = formatBRL(discount);
+                }
+                document.getElementById('summary-total').textContent = formatBRL(total);
+
+                // Listar itens (mostrando o cupom, se houver)
+                const itemsHtml = cart.map(item => `
+                    <div class="summary-item">
+                        <span>${escapeHTML(item.name || 'Produto')} (${Number(item.quantity) || 0}x)</span>
+                        <span>${formatBRL(item.price * item.quantity)}</span>
+                    </div>
+                `).join('')
+                + (appliedCoupon && discount > 0 ? `
+                    <div class="summary-item" style="color: var(--success, #28a745); font-weight: 600;">
+                        <span>Cupom ${escapeHTML(appliedCoupon.code)} (-${escapeHTML(appliedCoupon.discount_percent)}%)</span>
+                        <span>- ${formatBRL(discount)}</span>
+                    </div>
+                ` : '');
+                document.getElementById('order-items-summary').innerHTML = itemsHtml;
+
+                checkoutContent.style.display = 'grid';
+                paymentContent.style.display = 'block';
+
+                // Guarda os totais para o processPayment usar quando o usuario clicar "Finalizar compra".
+                // O pedido SO e criado quando o usuario confirma — nao mais ao carregar a pagina,
+                // porque o endereco (bairro/cidade) ainda nao esta preenchido nesse momento.
+                window._checkoutData = {
+                    cart,
+                    subtotal,
+                    shipping,
+                    discount,
+                    total,
+                    couponCode: appliedCoupon ? appliedCoupon.code : null,
+                };
+            } catch (err) {
+                Notifications.error('Erro ao carregar checkout: ' + err.message);
+            }
+        }
+
+        // Pura: faz so a chamada ao backend e devolve o orderId.
+        // Validacoes e UI (loading/erros) ficam no CHAMADOR (criarPedidoBackend / processPayment).
+        // Antes, esta funcao engolia erros internamente e tentava renderizar QR
+        // num container que ja nao estava em uso, mascarando falhas reais.
+        async function createOrder(cart, subtotal, shipping, discount, total, couponCode = null) {
+            const cep = document.getElementById('checkout-cep').value.replace(/\D/g, '');
+            const numero = document.getElementById('checkout-numero').value.trim();
+            const rua = document.getElementById('checkout-rua').value.trim();
+            const bairro = document.getElementById('checkout-bairro').value.trim();
+            const cidade = document.getElementById('checkout-cidade').value.trim();
+            const complemento = document.getElementById('checkout-complemento').value.trim();
+
+            if (!cep || cep.length !== 8) throw new Error('CEP inválido');
+            if (!numero) throw new Error('Informe o número do imóvel');
+            if (!rua || !bairro || !cidade) throw new Error('Preencha rua, bairro e cidade');
+
+            const token = sessionStorage.getItem('token');
+            const response = await fetch('/api/payments/checkout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    subtotal,
+                    shipping,
+                    discount,
+                    total,
+                    couponCode: couponCode || null,
+                    address: { cep, numero, rua, bairro, cidade, complemento },
+                    items: cart.map(item => ({
+                        productId: item.productId,
+                        name: item.name,
+                        price: Number(item.price),
+                        quantity: item.quantity,
+                        size: item.size || null,
+                        lineTotal: Number(item.price) * item.quantity,
+                    })),
+                }),
+            });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.error || `Erro HTTP ${response.status} ao criar pedido`);
+            }
+
+            const data = await response.json();
+            currentOrderId = data.orderId;
+
+            // Salva pedido pendente para evitar duplicatas ao recarregar
+            try {
+                localStorage.setItem(PENDING_ORDER_KEY, JSON.stringify({
+                    orderId: data.orderId,
+                    userId: user.id,
+                    signature: cartSignature(cart),
+                    createdAt: Date.now(),
+                }));
+            } catch (_) {}
+
+            return data.orderId;
+        }
+
+        async function loadPixInfo(orderId) {
+            try {
+                const token = sessionStorage.getItem('token');
+                const response = await fetch(`/api/payments/pix/${orderId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error('Erro na resposta:', errorData);
+                    throw new Error(errorData.error || 'Erro ao gerar QR Code');
+                }
+
+                const data = await response.json();
+                pixLoading.style.display = 'none';
+                pixInfo.style.display = 'block';
+                document.getElementById('qr-code-img').src = data.qrCode;
+            } catch (err) {
+                console.error('Erro completo:', err);
+                pixLoading.style.display = 'none';
+                document.querySelector('#pix-loading').style.display = 'none';
+                const errorDiv = document.querySelector('#pix-info');
+                if (errorDiv) {
+                    errorDiv.innerHTML = `<div style="color: red; padding: 1rem;">Erro: ${escapeHTML(err.message)}</div>`;
+                    errorDiv.style.display = 'block';
+                }
+            }
+        }
+
+        function copyPixKey() {
+            const key = '03828643019';
+            copyTextWithFeedback(key, 'Chave PIX copiada!');
+        }
+
+        function showPixConfirmModal() {
+            const modal = document.createElement('div');
+            modal.className = 'confirm-modal';
+            modal.innerHTML = `
+                <div class="confirm-modal-content">
+                    <h3>Confirmar Pagamento PIX</h3>
+                    <p style="margin-bottom: 1.5rem;">Você confirmou que realizou a transferência PIX? Após confirmar, você será redirecionado para enviar o comprovante.</p>
+                    <div class="confirm-modal-buttons">
+                        <button class="confirm-btn-yes" onclick="this.closest('.confirm-modal').remove(); proceedWithPixPayment();">Sim, realizei o pagamento</button>
+                        <button class="confirm-btn-no" onclick="this.closest('.confirm-modal').remove();">Cancelar</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        async function proceedWithPixPayment() {
+            try {
+                const user = getLoggedUser();
+                const whatsappNumber = '54992026684';
+                const message = `Olá! Acabei de fazer um pedido #${currentOrderId} na Prime Sneaker. Estou enviando o comprovante de pagamento do PIX. Obrigado!`;
+                const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+
+                // Limpar carrinho e pedido pendente (ja foi finalizado)
+                Cart.clear();
+                localStorage.removeItem(PENDING_ORDER_KEY);
+
+                // Mostrar sucesso
+                pixInfo.style.display = 'none';
+                document.getElementById('success-message').style.display = 'block';
+                document.getElementById('payment-status').style.display = 'none';
+
+                Notifications.success('Pedido criado! Abrindo WhatsApp...');
+
+                // Redirecionar para WhatsApp após 1 segundo
+                setTimeout(() => {
+                    window.open(whatsappUrl, '_blank');
+                }, 1000);
+            } catch (err) {
+                Notifications.error('Erro: ' + err.message);
+            }
+        }
+
+        async function confirmPayment() {
+            showPixConfirmModal();
+        }
+    </script>
+</body>
+</html>

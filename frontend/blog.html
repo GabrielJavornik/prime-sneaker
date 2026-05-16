@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Blog - Prime Sneaker</title>
+    <link rel="stylesheet" href="css/style.css?v=31" />
+    <style>
+        .blog-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+        .blog-card {
+            background: var(--card);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .blog-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+        }
+        .blog-card-image {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+        }
+        .blog-card-content {
+            padding: 1.5rem;
+        }
+        .blog-card h3 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            font-size: 1.2rem;
+        }
+        .blog-card-date {
+            color: var(--accent);
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+        }
+        .blog-card p {
+            color: var(--muted);
+            line-height: 1.6;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+        .blog-card-link {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s;
+        }
+        .blog-card-link:hover {
+            color: var(--accent-dark);
+        }
+    </style>
+</head>
+<body>
+    <div id="header-placeholder"></div>
+
+    <main style="max-width: 1200px; margin: 3rem auto; padding: 0 2rem;">
+        <h1 style="color: var(--primary); margin-bottom: 1rem;">Blog Prime Sneaker</h1>
+        <p style="color: var(--muted); margin-bottom: 3rem; font-size: 1.1rem;">
+            Dicas, tendências e histórias do mundo dos sneakers
+        </p>
+
+        <div class="blog-grid">
+            <!-- Post 1 -->
+            <div class="blog-card">
+                <div class="blog-card-image">GUIA</div>
+                <div class="blog-card-content">
+                    <div class="blog-card-date">15 de Abril de 2026</div>
+                    <h3>Guia Completo: Como Identificar Sneakers Falsas</h3>
+                    <p>
+                        Aprenda os principais pontos para verificar autenticidade em sneakers. Confira costura, materiais e detalhes de produção.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Post 2 -->
+            <div class="blog-card">
+                <div class="blog-card-image">DROPS</div>
+                <div class="blog-card-content">
+                    <div class="blog-card-date">12 de Abril de 2026</div>
+                    <h3>Lançamentos Mais Esperados de Abril</h3>
+                    <p>
+                        Conheça os sneakers mais aguardados para este mês. Descubra as cores, materiais e preços dos lançamentos em destaque.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Post 3 -->
+            <div class="blog-card">
+                <div class="blog-card-image">CUIDE</div>
+                <div class="blog-card-content">
+                    <div class="blog-card-date">10 de Abril de 2026</div>
+                    <h3>Cuidados Essenciais com Seus Sneakers</h3>
+                    <p>
+                        Dicas para manter seus tênis em perfeito estado. Limpeza, armazenamento e manutenção das melhores marcas.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Post 4 -->
+            <div class="blog-card">
+                <div class="blog-card-image">ÍCONES</div>
+                <div class="blog-card-content">
+                    <div class="blog-card-date">8 de Abril de 2026</div>
+                    <h3>Sneakers que Definiram Gerações</h3>
+                    <p>
+                        Conheça os modelos clássicos que revolucionaram o mercado de sneakers e continuam sendo ícones da moda.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Post 5 -->
+            <div class="blog-card">
+                <div class="blog-card-image">RAROS</div>
+                <div class="blog-card-content">
+                    <div class="blog-card-date">5 de Abril de 2026</div>
+                    <h3>Entrevista: Colecionador de Sneakers Raros</h3>
+                    <p>
+                        Conheça a história de um dos maiores colecionadores de sneakers raros do Brasil e sua paixão pela cultura.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Post 6 -->
+            <div class="blog-card">
+                <div class="blog-card-image">COLLAB</div>
+                <div class="blog-card-content">
+                    <div class="blog-card-date">2 de Abril de 2026</div>
+                    <h3>Colaborações Exclusivas: O Futuro dos Sneakers</h3>
+                    <p>
+                        Explore as parcerias mais criativas entre marcas e designers que estão moldando o futuro da indústria.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 4rem;">
+            <p style="color: var(--muted); margin-bottom: 2rem;">
+                Mais artigos em breve! Acompanhe nossas redes sociais para não perder nenhuma novidade.
+            </p>
+        </div>
+    </main>
+
+    <div id="footer-placeholder"></div>
+
+    <script src="js/notifications.js?v=2"></script>
+    <script src="js/cart-storage.js"></script>
+    <script src="js/cart.js?v=5"></script>
+    <script src="js/wishlist.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/common.js?v=18"></script>
+</body>
+</html>

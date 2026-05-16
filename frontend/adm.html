@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>&Aacute;rea Administrativa - Prime Sneaker</title>
+    <link rel="stylesheet" href="css/style.css?v=31" />
+    <link rel="stylesheet" href="css/admin-panel.css?v=16" />
+    <script>
+        // As sessões de usuário normal (`user`/`token`) e de admin
+        // (`adminUser`/`adminToken`) são independentes e NÃO devem ser
+        // mexidas aqui. Qualquer personalização do header com o nome do
+        // admin é feita mais abaixo via updateAdminName().
+    </script>
+    <script>
+        // VERIFICAÇÃO DE SEGURANÇA - EXECUTAR PRIMEIRO
+        // Se não está logado como admin, redirecionar imediatamente.
+        // A sessão admin é guardada em sessionStorage — dessa forma, fechar o
+        // navegador ou reiniciar o PC encerra a sessão e exige novo login.
+        const adminToken = sessionStorage.getItem('adminToken');
+        // A permissao real nao e lida de adminUser aqui. admin.js chama /api/admin/session
+        // com o token e so mostra o painel se o backend confirmar is_admin.
+
+        if (!adminToken) {
+            // Limpar qualquer resíduo da sessão admin (tanto em session quanto
+            // em local, caso tenha sobrado de uma versão antiga do site).
+            sessionStorage.removeItem('adminToken');
+            sessionStorage.removeItem('adminUser');
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUser');
+
+            // Redirecionar para página de login
+            window.location.replace('admin-login.html');
+            throw new Error('Acesso negado: não autorizado');
+        }
+        // NÃO removemos `user`/`token` aqui. O nome do admin no header é
+        // aplicado depois por updateAdminName(), sem tocar na sessão normal.
+    </script>
+</head>
+<body data-page="admin" class="admin-booting">
+    <div id="header-placeholder"></div>
+
+    <main>
+        <h2 class="section-title">&Aacute;rea Administrativa</h2>
+
+        <!-- Tela de login admin -->
+        <div id="admin-login" class="is-hidden">
+            <div class="card-form">
+                <h2>Entrar como Admin</h2>
+                <div id="alert-area"></div>
+                <form id="admin-login-form" autocomplete="off">
+                    <div class="form-group">
+                        <label for="adm-email">E-mail</label>
+                        <input type="email" id="adm-email" required autocomplete="off" />
+                    </div>
+                    <div class="form-group">
+                        <label for="adm-password">Senha</label>
+                        <input type="password" id="adm-password" required autocomplete="new-password" />
+                    </div>
+                    <button type="submit" class="btn-primary">Entrar</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Painel admin -->
+        <div id="admin-panel" class="is-hidden">
+            <div class="admin-layout">
+                <!-- Sidebar -->
+                <aside class="admin-sidebar" aria-label="Navega&ccedil;&atilde;o do painel admin">
+                    <h3>Menu</h3>
+                    <button data-tab="dashboard" onclick="showTab('dashboard')">
+                        <span class="admin-nav-icon admin-nav-icon-dashboard" aria-hidden="true"></span>
+                        <span>Dashboard</span>
+                        <span id="pending-orders-badge" class="admin-notification-badge">0</span>
+                    </button>
+                    <button data-tab="products" onclick="showTab('products')"><span class="admin-nav-icon admin-nav-icon-products" aria-hidden="true"></span><span>Produtos</span></button>
+                    <button data-tab="pedidos" onclick="showTab('pedidos')"><span class="admin-nav-icon admin-nav-icon-orders" aria-hidden="true"></span><span>Pedidos</span></button>
+                    <button data-tab="coupons" onclick="showTab('coupons')"><span class="admin-nav-icon admin-nav-icon-coupons" aria-hidden="true"></span><span>Cupons</span></button>
+                    <button data-tab="promocoes" onclick="showTab('promocoes')"><span class="admin-nav-icon admin-nav-icon-promotions" aria-hidden="true"></span><span>Promo&ccedil;&otilde;es</span></button>
+                    <button data-tab="clientes" onclick="showTab('clientes')"><span class="admin-nav-icon admin-nav-icon-customers" aria-hidden="true"></span><span>Clientes</span></button>
+                    <button data-tab="estoque" onclick="showTab('estoque')"><span class="admin-nav-icon admin-nav-icon-stock" aria-hidden="true"></span><span>Estoque Baixo</span></button>
+                    <button data-superadmin-only="true" data-tab="admins" onclick="showTab('admins')"><span class="admin-nav-icon admin-nav-icon-admins" aria-hidden="true"></span><span>Administradores</span></button>
+                    <button data-superadmin-only="true" data-tab="audit-logs" onclick="showTab('audit-logs')"><span class="admin-nav-icon admin-nav-icon-audit" aria-hidden="true"></span><span>Auditoria</span></button>
+                    <button class="admin-logout-button"
+                            onclick="logoutAdmin()">Sair</button>
+                </aside>
+
+                <!-- Conteudo -->
+                <section class="admin-content">
+                    <div id="admin-order-notification" class="admin-order-notification"></div>
+                    <!-- TAB: Dashboard -->
+                    <div id="tab-dashboard" class="is-hidden">
+                        <div class="admin-dashboard-hero">
+                            <div>
+                                <h2>O que precisa de aten&ccedil;&atilde;o agora</h2>
+                                <p>Pedidos, pagamentos, estoque cr&iacute;tico e vendas recentes em uma primeira tela mais operacional.</p>
+                            </div>
+                            <div class="admin-dashboard-actions">
+                                <button type="button" onclick="showTab('pedidos')">Ver pedidos</button>
+                                <button type="button" onclick="showTab('estoque')">Estoque baixo</button>
+                                <button type="button" onclick="showTab('products')">Adicionar produto</button>
+                            </div>
+                        </div>
+
+                        <div class="admin-dashboard-toolbar" aria-label="Filtros do dashboard">
+                            <div class="admin-dashboard-filter-copy">
+                                <strong>Per&iacute;odo do painel</strong>
+                                <span>Filtre vendas, pedidos e transa&ccedil;&otilde;es sem sair do dashboard.</span>
+                            </div>
+                            <div class="admin-period-presets" role="group" aria-label="Atalhos de per&iacute;odo">
+                                <button type="button" data-dashboard-period="today" onclick="setDashboardPeriod('today')">Hoje</button>
+                                <button type="button" data-dashboard-period="7d" onclick="setDashboardPeriod('7d')">7 dias</button>
+                                <button type="button" data-dashboard-period="30d" onclick="setDashboardPeriod('30d')">30 dias</button>
+                                <button type="button" data-dashboard-period="year" onclick="setDashboardPeriod('year')">Ano</button>
+                                <button type="button" data-dashboard-period="all" onclick="setDashboardPeriod('all')">Tudo</button>
+                            </div>
+                            <div class="admin-date-range">
+                                <label for="dashboard-start-date">
+                                    <span>De</span>
+                                    <input type="date" id="dashboard-start-date" />
+                                </label>
+                                <label for="dashboard-end-date">
+                                    <span>At&eacute;</span>
+                                    <input type="date" id="dashboard-end-date" />
+                                </label>
+                                <button type="button" onclick="applyDashboardCustomPeriod()">Aplicar</button>
+                            </div>
+                        </div>
+
+                        <div class="admin-status-chip-row" aria-label="Status de pedidos no per&iacute;odo">
+                            <button type="button" class="admin-status-chip is-awaiting" data-dashboard-status="aguardando_pagamento" onclick="openDashboardStatusOrders('aguardando_pagamento')">
+                                <span>Aguardando pagamento</span>
+                                <strong id="status-chip-awaiting">0</strong>
+                            </button>
+                            <button type="button" class="admin-status-chip is-processing" data-dashboard-status="processando" onclick="openDashboardStatusOrders('processando')">
+                                <span>Pagamento confirmado</span>
+                                <strong id="status-chip-processing">0</strong>
+                            </button>
+                            <button type="button" class="admin-status-chip" data-dashboard-status="enviado" onclick="openDashboardStatusOrders('enviado')">
+                                <span>Enviados</span>
+                                <strong id="status-chip-shipped">0</strong>
+                            </button>
+                            <button type="button" class="admin-status-chip" data-dashboard-status="entregue" onclick="openDashboardStatusOrders('entregue')">
+                                <span>Entregues</span>
+                                <strong id="status-chip-delivered">0</strong>
+                            </button>
+                            <button type="button" class="admin-status-chip is-muted" data-dashboard-status="cancelado" onclick="openDashboardStatusOrders('cancelado')">
+                                <span>Cancelados</span>
+                                <strong id="status-chip-canceled">0</strong>
+                            </button>
+                        </div>
+
+                        <div class="admin-attention-grid">
+                            <div class="admin-attention-card is-danger">
+                                <div class="eyebrow">Pedidos pendentes</div>
+                                <div class="big-value" id="dash-action-orders">0</div>
+                                <p id="dash-action-orders-text">Nenhum pedido aguardando a&ccedil;&atilde;o.</p>
+                                <button type="button" onclick="showTab('pedidos')">Abrir pedidos</button>
+                            </div>
+                            <div class="admin-attention-card is-warning">
+                                <div class="eyebrow">Pagamento confirmado</div>
+                                <div class="big-value" id="dash-processing-orders">0</div>
+                                <p>Pedidos para preparar, enviar ou atualizar status.</p>
+                                <button type="button" onclick="showTab('pedidos')">Atualizar status</button>
+                            </div>
+                            <div class="admin-attention-card is-danger">
+                                <div class="eyebrow">Estoque cr&iacute;tico</div>
+                                <div class="big-value" id="dash-low-stock">0</div>
+                                <p>Produtos com estoque total baixo precisam de reposi&ccedil;&atilde;o.</p>
+                                <button type="button" onclick="showTab('estoque')">Ver estoque</button>
+                            </div>
+                            <div class="admin-attention-card is-success">
+                                <div class="eyebrow">Vendas recentes</div>
+                                <div class="big-value" id="dash-recent-sales">0</div>
+                                <p>&Uacute;ltimas transa&ccedil;&otilde;es PIX carregadas no painel.</p>
+                                <button type="button" onclick="showTab('pedidos')">Conferir vendas</button>
+                            </div>
+                        </div>
+
+                        <div class="dash-cards">
+                            <div class="dash-card">
+                                <div class="label">Vendas Totais</div>
+                                <div class="value" id="total-sales">R$ 0,00</div>
+                            </div>
+                            <div class="dash-card">
+                                <div class="label">Pedidos</div>
+                                <div class="value" id="total-orders">0</div>
+                            </div>
+                            <div class="dash-card">
+                                <div class="label">Ticket Médio</div>
+                                <div class="value" id="avg-ticket">R$ 0,00</div>
+                            </div>
+                        </div>
+
+                        <div class="dash-section" id="pending-orders-section">
+                            <div class="admin-section-head">
+                                <div>
+                                    <span class="admin-section-kicker">Prioridade do caixa</span>
+                                    <h3>Pedidos aguardando pagamento</h3>
+                                </div>
+                                <button type="button" onclick="openDashboardStatusOrders('aguardando_pagamento')">Ver todos</button>
+                            </div>
+                            <div id="pending-orders-list">
+                                <p class="admin-muted-compact">Nenhum pedido pendente.</p>
+                            </div>
+                        </div>
+
+                        <div class="dash-section">
+                            <h3>Estoque cr&iacute;tico agora</h3>
+                            <div id="dashboard-low-stock-list" class="dashboard-low-stock-preview">
+                                <p class="admin-muted-compact">Nenhum produto em estoque cr&iacute;tico.</p>
+                            </div>
+                        </div>
+
+                        <div class="dash-charts">
+                            <div class="dash-chart-box">
+                                <h3>Vendas por Mês</h3>
+                                <canvas id="chart-monthly"></canvas>
+                            </div>
+                            <div class="dash-chart-box">
+                                <h3>Produtos Mais Vendidos</h3>
+                                <canvas id="chart-products"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="dash-section">
+                            <h3>&Uacute;ltimas transa&ccedil;&otilde;es PIX</h3>
+                            <div class="admin-table-wrapper admin-table-min-680" tabindex="0" aria-label="Tabela com rolagem horizontal">
+                                <table class="admin-pix-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Pedido</th>
+                                            <th>Cliente</th>
+                                            <th>Valor</th>
+                                            <th>Status</th>
+                                            <th>Data</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="pix-transactions-table">
+                                        <tr>
+                                            <td colspan="5" class="admin-center-muted">
+                                                Nenhuma transação registrada.
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB: Produtos -->
+                    <div id="tab-products" class="is-hidden">
+                        <div class="admin-products-head">
+                            <div>
+                                <h2>Produtos</h2>
+                                <p>Consulte, edite e acompanhe o cat&aacute;logo antes de cadastrar novos t&ecirc;nis.</p>
+                            </div>
+                            <div class="admin-products-actions">
+                                <button type="button" class="btn-admin-new-product" onclick="openProductCreateForm()">+ Novo produto</button>
+                            </div>
+                        </div>
+                        <div id="product-alert" class="admin-alert-space"></div>
+                        <div class="admin-products-table-card">
+                            <div class="admin-products-table-head">
+                                <div>
+                                    <h3>Produtos cadastrados</h3>
+                                    <p>Busque, filtre e ordene antes de editar ou cadastrar novos itens.</p>
+                                </div>
+                            </div>
+                            <div class="admin-products-toolbar" aria-label="Filtros de produtos">
+                                <label class="admin-product-search" for="admin-product-search">
+                                    <span>Buscar</span>
+                                    <input type="search" id="admin-product-search" placeholder="Nome, marca ou categoria" />
+                                </label>
+                                <label for="admin-product-category">
+                                    <span>Categoria</span>
+                                    <select id="admin-product-category">
+                                        <option value="">Todas</option>
+                                        <option value="casual">Casual</option>
+                                        <option value="esportivo">Esportivo</option>
+                                        <option value="formal">Formal</option>
+                                        <option value="trekking">Trekking</option>
+                                    </select>
+                                </label>
+                                <label for="admin-product-brand">
+                                    <span>Marca</span>
+                                    <input type="text" id="admin-product-brand" placeholder="Ex: Nike" />
+                                </label>
+                                <label for="admin-product-outlet">
+                                    <span>Outlet</span>
+                                    <select id="admin-product-outlet">
+                                        <option value="">Todos</option>
+                                        <option value="true">Somente outlet</option>
+                                        <option value="false">Sem outlet</option>
+                                    </select>
+                                </label>
+                                <label for="admin-product-launch">
+                                    <span>Lan&ccedil;amento</span>
+                                    <select id="admin-product-launch">
+                                        <option value="">Todos</option>
+                                        <option value="true">Somente lan&ccedil;amentos</option>
+                                        <option value="false">Sem lan&ccedil;amento</option>
+                                    </select>
+                                </label>
+                                <label for="admin-product-sort">
+                                    <span>Ordenar por</span>
+                                    <select id="admin-product-sort">
+                                        <option value="recent">Mais recentes</option>
+                                        <option value="price_asc">Menor pre&ccedil;o</option>
+                                        <option value="price_desc">Maior pre&ccedil;o</option>
+                                        <option value="stock_asc">Menor estoque</option>
+                                        <option value="stock_desc">Maior estoque</option>
+                                        <option value="name_asc">Nome A-Z</option>
+                                    </select>
+                                </label>
+                                <div class="admin-products-toolbar-actions">
+                                    <button type="button" class="btn-admin-filter" onclick="applyAdminProductFilters()">Filtrar</button>
+                                    <button type="button" class="btn-admin-clear" onclick="resetAdminProductFilters()">Limpar</button>
+                                </div>
+                            </div>
+                            <div class="admin-table-wrapper admin-table-min-980" tabindex="0" aria-label="Tabela com rolagem horizontal">
+                                <table id="products-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Imagem</th>
+                                            <th>Nome</th>
+                                            <th>Categoria</th>
+                                            <th>Marca</th>
+                                            <th>Pre&ccedil;o</th>
+                                            <th>Estoque</th>
+                                            <th>A&ccedil;&otilde;es</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                            <div id="products-pagination" class="admin-pagination"></div>
+                        </div>
+                        <div id="product-form-backdrop" class="admin-drawer-backdrop" onclick="closeProductForm()"></div>
+                        <div class="card-form admin-products-form-card admin-product-drawer" id="product-form-card" aria-hidden="true">
+                            <div class="admin-drawer-head">
+                                <div>
+                                    <span>Novo produto</span>
+                                    <h3 id="product-form-title">Cadastrar novo t&ecirc;nis</h3>
+                                </div>
+                                <button type="button" onclick="closeProductForm()" aria-label="Fechar formul&aacute;rio">Fechar</button>
+                            </div>
+                            <form id="product-form">
+                                <input type="hidden" id="product-id" />
+                                <div class="admin-form-grid">
+                                    <div class="form-group">
+                                        <label for="p-name">Nome</label>
+                                        <input type="text" id="p-name" required />
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="p-price">Preço (R$)</label>
+                                        <input type="number" id="p-price" step="0.01" min="0" required />
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="p-discount">Desconto outlet (%)</label>
+                                        <input type="number" id="p-discount" step="0.01" min="0" max="99" placeholder="Ex: 20" />
+                                        <small id="p-discount-preview" class="admin-discount-preview">
+                                            Sem desconto aplicado.
+                                        </small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="p-category">Categoria</label>
+                                        <select id="p-category">
+                                            <option value="casual">Casual</option>
+                                            <option value="esportivo">Esportivo</option>
+                                            <option value="formal">Formal</option>
+                                            <option value="trekking">Trekking</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="p-color">Cor</label>
+                                        <input type="text" id="p-color" placeholder="Preto, Branco, etc." />
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="p-brand">Marca</label>
+                                        <input type="text" id="p-brand" placeholder="Nike, Adidas, Vans..." />
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="p-gender">Público</label>
+                                        <select id="p-gender">
+                                            <option value="unissex">Unissex</option>
+                                            <option value="masculino">Masculino</option>
+                                            <option value="feminino">Feminino</option>
+                                            <option value="infantil">Infantil</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="p-sizes">Tamanhos disponíveis</label>
+                                        <input type="text" id="p-sizes" placeholder="Ex: 38,39,40,41,42" />
+                                    </div>
+                                    <div class="form-group product-flags-group">
+                                        <span class="admin-field-label" id="product-flags-label">Destaques do menu</span>
+                                        <div class="product-flags" role="group" aria-labelledby="product-flags-label">
+                                            <label class="admin-check" for="p-launch">
+                                                <input type="checkbox" id="p-launch" />
+                                                <span>Lançamento</span>
+                                            </label>
+                                            <label class="admin-check" for="p-outlet">
+                                                <input type="checkbox" id="p-outlet" />
+                                                <span>Outlet</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="p-image">URL da Imagem</label>
+                                    <input type="text" id="p-image" placeholder="https://..." />
+                                </div>
+                                <!-- Galeria de imagens -->
+                                <div class="form-group is-hidden" id="gallery-manager">
+                                    <label for="gallery-new-url">Galeria de Fotos</label>
+                                    <div id="gallery-images-list" class="admin-gallery-list"></div>
+                                    <div class="admin-inline-actions">
+                                        <input type="text" id="gallery-new-url" class="admin-flex-input" placeholder="URL da nova foto..." />
+                                        <button type="button" class="btn-secondary" onclick="addGalleryImage()">Adicionar</button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="p-description">Descrição</label>
+                                    <textarea id="p-description" rows="3"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <span class="admin-field-label" id="size-stock-label">Estoque por Tamanho</span>
+                                    <div id="size-stock-inputs" class="admin-size-stock-grid" role="group" aria-labelledby="size-stock-label">
+                                    </div>
+                                </div>
+                                <div class="admin-form-actions">
+                                    <button type="submit" class="btn-primary">Salvar</button>
+                                    <button type="button" class="admin-cancel-button" onclick="closeProductForm()">Cancelar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- TAB: Pedidos -->
+                    <div id="tab-pedidos" class="is-hidden">
+                        <h2>Gerenciar pedidos</h2>
+                        <p class="admin-section-description">
+                            Atualize o status de cada pedido conforme ele é processado, enviado ou entregue.
+                        </p>
+
+                        <div class="admin-orders-toolbar" aria-label="Filtros de pedidos">
+                            <label class="admin-orders-search" for="pedidos-search">
+                                <span>Buscar pedido ou cliente</span>
+                                <input type="search" id="pedidos-search" placeholder="Ex: #52, Gabriel, email ou telefone" />
+                            </label>
+                            <label class="admin-filter-label" for="pedidos-filter">
+                                <span>Status</span>
+                                <select id="pedidos-filter" class="admin-filter-select" onchange="setOrderStatusFilter(this.value)">
+                                    <option value="">Todos</option>
+                                    <option value="aguardando_pagamento">Aguardando Pagamento</option>
+                                    <option value="processando">Processando</option>
+                                    <option value="enviado">Enviado</option>
+                                    <option value="entregue">Entregue</option>
+                                    <option value="cancelado">Cancelado</option>
+                                </select>
+                            </label>
+                            <div class="admin-order-toolbar-actions">
+                                <button class="admin-refresh-button" onclick="applyOrderSearch()">Buscar</button>
+                                <button class="admin-clear-button" onclick="clearOrderFilters()">Limpar</button>
+                                <button class="admin-refresh-button is-secondary" onclick="loadAllOrders()">Atualizar</button>
+                            </div>
+                        </div>
+
+                        <div class="admin-order-status-chips" aria-label="Filtros rápidos de status">
+                            <button type="button" class="order-status-chip" data-order-status="" onclick="setOrderStatusFilter('')">Todos</button>
+                            <button type="button" class="order-status-chip is-awaiting" data-order-status="aguardando_pagamento" onclick="setOrderStatusFilter('aguardando_pagamento')">Aguardando pagamento</button>
+                            <button type="button" class="order-status-chip is-processing" data-order-status="processando" onclick="setOrderStatusFilter('processando')">Processando</button>
+                            <button type="button" class="order-status-chip is-shipped" data-order-status="enviado" onclick="setOrderStatusFilter('enviado')">Enviado</button>
+                            <button type="button" class="order-status-chip is-delivered" data-order-status="entregue" onclick="setOrderStatusFilter('entregue')">Entregue</button>
+                            <button type="button" class="order-status-chip is-canceled" data-order-status="cancelado" onclick="setOrderStatusFilter('cancelado')">Cancelado</button>
+                        </div>
+
+                        <div id="pedidos-list">
+                            <p class="admin-muted-loading">Carregando pedidos...</p>
+                        </div>
+                        <div id="pedidos-pagination" class="admin-pagination"></div>
+                    </div>
+
+                    <!-- TAB: Cupons -->
+                    <div id="tab-coupons" class="is-hidden">
+                        <h2>Cupons</h2>
+                        <div id="coupon-alert" class="admin-alert-space"></div>
+                        <div id="coupon-superadmin-notice" class="dash-section admin-superadmin-notice">
+                            <strong>Somente o superadmin pode criar, editar ou excluir cupons.</strong>
+                            <p class="admin-superadmin-copy">
+                                Admins comuns podem consultar os cupons, mas as altera&ccedil;&otilde;es ficam bloqueadas por seguran&ccedil;a.
+                            </p>
+                        </div>
+
+                        <div class="admin-products-table-card admin-coupons-table-card">
+                            <div class="admin-products-table-head">
+                                <div>
+                                    <h3>Cupons cadastrados</h3>
+                                    <p>Consulte, edite e acompanhe validade, uso e situa&ccedil;&atilde;o dos cupons.</p>
+                                </div>
+                                <button type="button" class="btn-admin-new-product" data-superadmin-only="true" onclick="openCouponCreateForm()">+ Novo cupom</button>
+                            </div>
+                            <div class="admin-table-wrapper admin-table-min-860" tabindex="0" aria-label="Tabela com rolagem horizontal">
+                                <table id="coupons-table">
+                                    <thead>
+                                        <tr>
+                                            <th>C&oacute;digo</th>
+                                            <th>Desconto</th>
+                                            <th>Valor M&iacute;nimo</th>
+                                            <th>Validade</th>
+                                            <th>Usos</th>
+                                            <th>Status</th>
+                                            <th>A&ccedil;&otilde;es</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                            <div id="coupons-pagination" class="admin-pagination"></div>
+                        </div>
+
+                        <div id="coupon-form-backdrop" class="admin-drawer-backdrop" onclick="closeCouponForm()"></div>
+                        <div id="coupon-editor-card" class="card-form admin-form-card admin-coupon-drawer" aria-hidden="true">
+                            <div class="admin-drawer-head">
+                                <div>
+                                    <span>Editor de cupom</span>
+                                    <h3 id="coupon-form-title">Criar novo cupom</h3>
+                                </div>
+                                <button type="button" onclick="closeCouponForm()">Fechar</button>
+                            </div>
+                            <form id="coupon-form" novalidate>
+                                <input type="hidden" id="c-id" />
+                                <div class="admin-form-grid">
+                                    <div class="form-group">
+                                        <label for="c-code">C&oacute;digo</label>
+                                        <input type="text" id="c-code" placeholder="URI10" autocomplete="off" required />
+                                        <small id="c-code-error" class="admin-field-error"></small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="c-discount">Desconto (%)</label>
+                                        <input type="number" id="c-discount" min="1" max="100" required />
+                                        <small id="c-discount-error" class="admin-field-error"></small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="c-min-value">Valor M&iacute;nimo (R$)</label>
+                                        <input type="number" id="c-min-value" min="0" step="0.01" value="0" />
+                                        <small id="c-min-value-error" class="admin-field-error"></small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="c-expires-at">Data de Expira&ccedil;&atilde;o</label>
+                                        <input type="date" id="c-expires-at" />
+                                        <small id="c-expires-at-error" class="admin-field-error"></small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="c-max-uses">Limite de Usos</label>
+                                        <input type="number" id="c-max-uses" min="1" placeholder="Deixar vazio para ilimitado" />
+                                        <small id="c-max-uses-error" class="admin-field-error"></small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="c-active">Status</label>
+                                        <select id="c-active">
+                                            <option value="true">Ativo</option>
+                                            <option value="false">Inativo</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="admin-form-actions">
+                                    <button type="submit" class="btn-primary">Salvar Cupom</button>
+                                    <button type="button" class="btn-clear admin-cancel-button" onclick="closeCouponForm()">Cancelar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- TAB: Promoções -->
+                    <div id="tab-promocoes" class="is-hidden">
+                        <h2>Promo&ccedil;&otilde;es e Newsletter</h2>
+                        <p class="admin-section-description">
+                            Envie promo&ccedil;&otilde;es e cupons exclusivos para os clientes inscritos na newsletter.
+                        </p>
+
+                        <div class="dash-cards">
+                            <div class="dash-card">
+                                <div class="label">Inscritos ativos</div>
+                                <div class="value" id="newsletter-count">0</div>
+                            </div>
+                            <div class="dash-card">
+                                <div class="label">Destinat&aacute;rios deste envio</div>
+                                <div class="value" id="promo-recipient-count">0</div>
+                            </div>
+                        </div>
+
+                        <div class="admin-promotion-layout">
+                            <div class="card-form admin-form-card admin-promotion-form-card">
+                                <h3>Preparar promo&ccedil;&atilde;o</h3>
+                                <p class="admin-section-description">
+                                    Revise a pr&eacute;via e envie a promo&ccedil;&atilde;o para todos os inscritos ativos.
+                                </p>
+                                <form id="promotion-form">
+                                    <div class="admin-form-grid">
+                                        <div class="form-group">
+                                            <label for="promo-subject">Assunto do email</label>
+                                            <input type="text" id="promo-subject" placeholder="Oferta exclusiva Prime Sneaker" required />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="promo-coupon">Cupom de desconto</label>
+                                            <input type="text" id="promo-coupon" placeholder="Ex: URI10" />
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="promo-title">T&iacute;tulo</label>
+                                        <input type="text" id="promo-title" placeholder="Uma promo&ccedil;&atilde;o especial para voc&ecirc;" required />
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="promo-message">Mensagem</label>
+                                        <textarea id="promo-message" rows="5" placeholder="Escreva a mensagem da promo&ccedil;&atilde;o..." required></textarea>
+                                    </div>
+                                    <div class="admin-form-actions admin-promotion-actions">
+                                        <button type="submit" class="btn-primary">Enviar para inscritos</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <aside class="admin-promotion-preview-card" aria-live="polite">
+                                <div class="admin-preview-kicker">Pr&eacute;-visualiza&ccedil;&atilde;o</div>
+                                <div id="promotion-preview" class="admin-promotion-preview">
+                                    <div class="promo-preview-header">
+                                        <strong>Prime Sneaker</strong>
+                                        <span id="promo-preview-subject">Assunto do email</span>
+                                    </div>
+                                    <div class="promo-preview-body">
+                                        <h3 id="promo-preview-title">T&iacute;tulo da promo&ccedil;&atilde;o</h3>
+                                        <p id="promo-preview-message">A mensagem aparecer&aacute; aqui enquanto voc&ecirc; digita.</p>
+                                        <div id="promo-preview-coupon" class="promo-preview-coupon is-hidden"></div>
+                                        <a href="search.html">Ver produtos</a>
+                                    </div>
+                                </div>
+                            </aside>
+                        </div>
+
+                        <h3>Inscritos</h3>
+                        <div class="admin-table-wrapper admin-table-min-620" tabindex="0" aria-label="Tabela com rolagem horizontal">
+                            <table id="newsletter-table">
+                                <thead>
+                                    <tr>
+                                        <th>Email</th>
+                                        <th>Status</th>
+                                        <th>Inscri&ccedil;&atilde;o</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="3" class="admin-muted-loading">Carregando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB: Clientes -->
+                    <div id="tab-clientes" class="is-hidden">
+                        <h2>Clientes cadastrados</h2>
+                        <p class="admin-section-description">
+                            Lista de todos os clientes registrados no sistema, com total de pedidos e gastos.
+                        </p>
+                        <div class="dash-cards admin-customer-summary">
+                            <div class="dash-card">
+                                <div class="label">Clientes</div>
+                                <div class="value" id="customers-total">0</div>
+                            </div>
+                            <div class="dash-card">
+                                <div class="label">Com pedidos</div>
+                                <div class="value" id="customers-with-orders">0</div>
+                            </div>
+                            <div class="dash-card">
+                                <div class="label">Valor gasto</div>
+                                <div class="value" id="customers-total-spent">R$ 0,00</div>
+                            </div>
+                            <div class="dash-card">
+                                <div class="label">Ticket m&eacute;dio</div>
+                                <div class="value" id="customers-average-spent">R$ 0,00</div>
+                            </div>
+                        </div>
+
+                        <div class="admin-products-table-card admin-customers-table-card">
+                            <div class="admin-products-table-head">
+                                <div>
+                                    <h3>Base de clientes</h3>
+                                    <p>Busque por nome, e-mail ou telefone e acesse o hist&oacute;rico de pedidos.</p>
+                                </div>
+                            </div>
+                            <div class="admin-customers-toolbar">
+                                <label class="admin-customer-search" for="admin-customer-search">
+                                    <span>Buscar cliente</span>
+                                    <input type="search" id="admin-customer-search" placeholder="Nome, e-mail ou telefone" autocomplete="off" />
+                                </label>
+                                <label for="admin-customer-sort">
+                                    <span>Ordenar por</span>
+                                    <select id="admin-customer-sort">
+                                        <option value="spent_desc">Maior valor gasto</option>
+                                        <option value="orders_desc">Mais pedidos</option>
+                                        <option value="recent_desc">&Uacute;ltimo pedido</option>
+                                        <option value="name_asc">Nome A-Z</option>
+                                    </select>
+                                </label>
+                                <button type="button" class="btn-admin-clear" onclick="resetCustomerFilters()">Limpar</button>
+                            </div>
+                            <div class="admin-table-wrapper admin-table-min-980" tabindex="0" aria-label="Tabela com rolagem horizontal">
+                                <table id="clientes-report-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nome</th>
+                                            <th>E-mail</th>
+                                            <th>Telefone</th>
+                                            <th>Pedidos</th>
+                                            <th>Total Gasto</th>
+                                            <th>&Uacute;ltimo Pedido</th>
+                                            <th>A&ccedil;&otilde;es</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="clientes-table">
+                                        <tr>
+                                            <td colspan="7" class="admin-center-muted">
+                                                Carregando...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB: Estoque Baixo -->
+                    <div id="tab-estoque" class="is-hidden">
+                        <h2>Produtos com estoque baixo</h2>
+                        <p class="admin-section-description">
+                            Produtos com estoque igual ou inferior a 10 unidades, ordenados por menor estoque primeiro.
+                        </p>
+                        <div class="dash-cards admin-stock-summary">
+                            <div class="dash-card admin-stock-card is-critical">
+                                <div class="label">Cr&iacute;tico</div>
+                                <div class="value" id="stock-critical-count">0</div>
+                                <small>At&eacute; 5 unidades</small>
+                            </div>
+                            <div class="dash-card admin-stock-card is-attention">
+                                <div class="label">Aten&ccedil;&atilde;o</div>
+                                <div class="value" id="stock-attention-count">0</div>
+                                <small>6 a 10 unidades</small>
+                            </div>
+                            <div class="dash-card admin-stock-card is-ok">
+                                <div class="label">OK</div>
+                                <div class="value" id="stock-ok-count">0</div>
+                                <small>Acima de 10 unidades</small>
+                            </div>
+                        </div>
+
+                        <div class="admin-products-table-card admin-stock-table-card">
+                            <div class="admin-products-table-head">
+                                <div>
+                                    <h3>Monitoramento de estoque</h3>
+                                    <p>Priorize primeiro os produtos com menor quantidade dispon&iacute;vel.</p>
+                                </div>
+                            </div>
+                            <div class="admin-stock-toolbar">
+                                <label for="admin-stock-sort">
+                                    <span>Ordenar por</span>
+                                    <select id="admin-stock-sort">
+                                        <option value="stock_asc">Menor estoque primeiro</option>
+                                        <option value="severity">Severidade</option>
+                                        <option value="stock_desc">Maior estoque primeiro</option>
+                                        <option value="name_asc">Produto A-Z</option>
+                                    </select>
+                                </label>
+                                <button type="button" class="btn-admin-filter" onclick="loadEstoqueReport()">Atualizar</button>
+                            </div>
+                            <div class="admin-table-wrapper admin-table-min-760" tabindex="0" aria-label="Tabela com rolagem horizontal">
+                                <table id="estoque-report-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Produto</th>
+                                            <th>Categoria</th>
+                                            <th>Pre&ccedil;o</th>
+                                            <th>Estoque Atual</th>
+                                            <th>Severidade</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="estoque-table">
+                                        <tr>
+                                            <td colspan="5" class="admin-center-muted">
+                                                Carregando...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB: Administradores -->
+                    <div id="tab-admins" class="is-hidden">
+                        <h2>Gerenciar administradores</h2>
+                        <div class="card-form admin-form-card">
+                            <h3>Adicionar novo administrador</h3>
+                            <form id="admin-form">
+                                <div class="admin-form-grid">
+                                    <div class="form-group">
+                                        <label for="a-name">Nome</label>
+                                        <input type="text" id="a-name" required />
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="a-email">Email</label>
+                                        <input type="email" id="a-email" required />
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="a-role">Tipo de acesso</label>
+                                        <select id="a-role">
+                                            <option value="admin">Administrador normal</option>
+                                            <option value="superadmin">Superadmin</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="a-password">Senha</label>
+                                        <input type="password" id="a-password" required minlength="8" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="a-password-confirm">Confirmar Senha</label>
+                                        <input type="password" id="a-password-confirm" required minlength="8" />
+                                    </div>
+                                </div>
+                                <div id="admin-form-alert"></div>
+                                <div class="admin-form-actions">
+                                    <button type="submit" class="btn-primary">Adicionar Admin</button>
+                                    <button type="button" class="admin-cancel-button" onclick="resetAdminForm()">Cancelar</button>
+                                </div>
+                            </form>
+                        </div>
+                        <h3>Administradores cadastrados</h3>
+                        <div class="admin-table-wrapper admin-table-min-760" tabindex="0" aria-label="Tabela com rolagem horizontal">
+                            <table id="admins-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>Email</th>
+                                        <th>Data de Criação</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB: Auditoria -->
+                    <div id="tab-audit-logs" class="is-hidden">
+                        <h2>Auditoria Administrativa</h2>
+                        <p class="admin-section-description">
+                            Registro das altera&ccedil;&otilde;es feitas no painel: produtos, cupons, pedidos, promo&ccedil;&otilde;es e administradores.
+                        </p>
+                        <div class="admin-audit-toolbar">
+                            <label for="audit-date-from">
+                                <span>De</span>
+                                <input type="date" id="audit-date-from" />
+                            </label>
+                            <label for="audit-date-to">
+                                <span>At&eacute;</span>
+                                <input type="date" id="audit-date-to" />
+                            </label>
+                            <label for="audit-admin-filter">
+                                <span>Admin</span>
+                                <input type="search" id="audit-admin-filter" placeholder="Nome ou email" />
+                            </label>
+                            <label for="audit-action-filter">
+                                <span>A&ccedil;&atilde;o</span>
+                                <select id="audit-action-filter">
+                                    <option value="">Todas</option>
+                                    <option value="product.create">Produto criado</option>
+                                    <option value="product.update">Produto atualizado</option>
+                                    <option value="product.delete">Produto exclu&iacute;do</option>
+                                    <option value="product.stock.update">Estoque atualizado</option>
+                                    <option value="coupon.create">Cupom criado</option>
+                                    <option value="coupon.update">Cupom atualizado</option>
+                                    <option value="coupon.delete">Cupom exclu&iacute;do</option>
+                                    <option value="admin.create">Admin criado</option>
+                                    <option value="admin.delete">Admin removido</option>
+                                    <option value="order.status.update">Status do pedido</option>
+                                    <option value="payment.confirm">Pagamento confirmado</option>
+                                    <option value="newsletter.promotion.test">Promo&ccedil;&atilde;o teste</option>
+                                    <option value="newsletter.promotion.send">Promo&ccedil;&atilde;o enviada</option>
+                                </select>
+                            </label>
+                            <label for="audit-target-filter">
+                                <span>Alvo</span>
+                                <input type="search" id="audit-target-filter" placeholder="Produto, cupom, pedido..." />
+                            </label>
+                            <div class="admin-audit-toolbar-actions">
+                                <button type="button" class="btn-admin-filter" onclick="loadAuditLogs()">Filtrar</button>
+                                <button type="button" class="btn-admin-clear" onclick="resetAuditFilters()">Limpar</button>
+                            </div>
+                        </div>
+                        <div class="admin-table-wrapper admin-table-min-920" tabindex="0" aria-label="Tabela com rolagem horizontal">
+                            <table id="audit-logs-table">
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Admin</th>
+                                        <th>A&ccedil;&atilde;o</th>
+                                        <th>Alvo</th>
+                                        <th>Detalhes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="5" class="admin-center-muted">
+                                            Carregando auditoria...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <div id="footer-placeholder"></div>
+
+    <script src="js/simple-chart.js?v=1"></script>
+    <script src="js/notifications.js?v=2"></script>
+    <script src="js/api.js?v=5"></script>
+    <script src="js/common.js?v=18"></script>
+    <script src="js/admin.js?v=35"></script>
+    <script>
+        // Na página admin, mostrar o nome do admin no header e trocar
+        // o dropdown pelas opções corretas de admin. Assim o botão "Sair"
+        // do cabeçalho efetua logoutAdmin() e não mexe na sessão normal.
+        function updateAdminName() {
+            try {
+                const adminUserRaw = sessionStorage.getItem('adminUser');
+                if (!adminUserRaw) return false;
+
+                const adminUser = JSON.parse(adminUserRaw);
+                const firstName = escapeHTML((adminUser.name || '').split(' ')[0] || 'Admin');
+                const greetText = `Ola, ${firstName} (Admin)`;
+
+                const nav = document.querySelector('.main-nav');
+                if (!nav) return false;
+
+                // Remover menu de usuário normal (se existir) e link "Entrar"
+                const existingMenu = nav.querySelector('.user-menu-container');
+                if (existingMenu) existingMenu.remove();
+                Array.from(nav.querySelectorAll('a')).forEach(a => {
+                    if (a.textContent.trim() === 'Entrar') a.remove();
+                });
+
+                // Se já criamos o menu admin antes, não duplicar
+                if (nav.querySelector('.admin-menu-container')) return true;
+
+                // Criar container admin com dropdown próprio
+                const container = document.createElement('div');
+                container.className = 'user-menu-container admin-menu-container';
+                container.innerHTML = `
+                    <button class="user-greet" onclick="toggleUserMenu(event)">${greetText}</button>
+                    <div class="user-dropdown" id="user-dropdown">
+                        <a href="adm.html">Painel Admin</a>
+                        <hr class="admin-menu-divider">
+                        <a href="#" onclick="logoutAdmin(); return false;">Sair</a>
+                    </div>
+                `;
+
+                // Inserir antes do link do carrinho (para manter carrinho no fim)
+                const cartLink = nav.querySelector('.cart-link');
+                if (cartLink) {
+                    nav.insertBefore(container, cartLink);
+                } else {
+                    nav.appendChild(container);
+                }
+                return true;
+            } catch (e) {
+                console.error('Erro ao atualizar nome do admin:', e);
+            }
+            return false;
+        }
+
+        // Tentar atualizar imediatamente
+        if (!updateAdminName()) {
+            // Se não conseguiu, tentar novamente com delays
+            setTimeout(() => updateAdminName(), 50);
+            setTimeout(() => updateAdminName(), 200);
+            setTimeout(() => updateAdminName(), 500);
+        }
+    </script>
+</body>
+</html>

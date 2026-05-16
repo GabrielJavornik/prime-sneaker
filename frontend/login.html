@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - Prime Sneaker</title>
+    <link rel="stylesheet" href="css/style.css?v=31" />
+</head>
+<body>
+    <div id="header-placeholder"></div>
+
+    <main>
+        <div class="card-form">
+            <h2>Entrar</h2>
+            <div id="alert-area"></div>
+            <form id="login-form">
+                <div class="form-group">
+                    <label>E-mail</label>
+                    <input type="email" id="email" required />
+                </div>
+                <div class="form-group">
+                    <label>Senha</label>
+                    <input type="password" id="password" required />
+                </div>
+                <button type="submit" class="btn-primary">Entrar</button>
+                <p class="form-footer">
+                    Nao tem conta? <a href="register.html">Cadastre-se</a>
+                </p>
+                <p class="form-footer">
+                    <a href="forgot-password.html">Esqueci minha senha</a>
+                </p>
+            </form>
+        </div>
+    </main>
+
+    <div id="footer-placeholder"></div>
+
+    <script src="js/notifications.js?v=2"></script>
+    <script src="js/cart-storage.js"></script>
+    <script src="js/cart.js?v=5"></script>
+    <script src="js/api.js?v=2"></script>
+    <script src="js/common.js?v=18"></script>
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const submitButton = form.querySelector('button[type="submit"]');
+            const originalText = submitButton ? submitButton.textContent : '';
+            const alertArea = document.getElementById('alert-area');
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            let shouldRestoreButton = true;
+
+            alertArea.innerHTML = '';
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = 'Entrando...';
+            }
+
+            try {
+                const resp = await API.login(email, password);
+
+                // Bloquear acesso de admin pela página de login normal
+                if (resp.user.is_admin) {
+                    alertArea.innerHTML =
+                        `<div class="alert alert-error">Acesso negado</div>`;
+                    toast('Use a tela de login do administrador.', 'warning');
+                    return;
+                }
+
+                sessionStorage.setItem('token', resp.token);
+                sessionStorage.setItem('user', JSON.stringify(resp.user));
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                if (typeof Cart !== 'undefined' && typeof Cart.mergeGuestCartToCurrentUser === 'function') {
+                    Cart.mergeGuestCartToCurrentUser();
+                }
+                shouldRestoreButton = false;
+                window.location.href = 'index.html';
+            } catch (err) {
+                alertArea.innerHTML =
+                    `<div class="alert alert-error">${err.message}</div>`;
+                toast(err.message, 'error');
+            } finally {
+                if (shouldRestoreButton && submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = originalText;
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Meus Favoritos - Prime Sneaker</title>
+    <link rel="stylesheet" href="css/style.css?v=31" />
+    <style>
+        .wishlist-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .wishlist-product {
+            display: flex;
+            gap: 1.5rem;
+            padding: 1rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            align-items: center;
+        }
+
+        .wishlist-product img {
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+
+        .wishlist-product-info {
+            flex: 1;
+        }
+
+        .wishlist-product h3 {
+            margin: 0 0 0.5rem;
+            color: var(--text);
+        }
+
+        .wishlist-product-meta {
+            font-size: 0.9rem;
+            color: var(--muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .wishlist-product-price {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin: 0.5rem 0;
+        }
+
+        .wishlist-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .wishlist-actions button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .btn-view {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-view:hover {
+            opacity: 0.9;
+        }
+
+        .btn-remove {
+            background: #f0f0f0;
+            color: var(--danger);
+        }
+
+        .btn-remove:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-add-cart {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-add-cart:hover {
+            opacity: 0.9;
+        }
+
+        .favorite-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            background: rgba(15, 23, 42, 0.68);
+            backdrop-filter: blur(4px);
+        }
+
+        .favorite-modal-backdrop.show {
+            display: flex;
+        }
+
+        .favorite-modal {
+            width: min(440px, 100%);
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.35);
+            overflow: hidden;
+            animation: modalIn 0.22s ease-out;
+        }
+
+        .favorite-modal-header {
+            padding: 1.4rem 1.5rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .favorite-modal-icon {
+            width: 48px;
+            height: 48px;
+            display: grid;
+            place-items: center;
+            margin-bottom: 1rem;
+            border-radius: 50%;
+            background: #fff1f0;
+            color: var(--danger);
+            font-size: 1.45rem;
+        }
+
+        .favorite-modal h3 {
+            margin: 0 0 0.45rem;
+            color: var(--text);
+            font-size: 1.35rem;
+        }
+
+        .favorite-modal p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.55;
+        }
+
+        .favorite-modal strong {
+            color: var(--text);
+        }
+
+        .favorite-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            padding: 1rem 1.5rem 1.4rem;
+        }
+
+        .favorite-modal-actions button {
+            min-width: 110px;
+            padding: 0.75rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .favorite-modal-cancel {
+            background: #f1f5f9;
+            color: var(--text);
+        }
+
+        .favorite-modal-remove {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        .favorite-modal-remove:hover {
+            background: #cf3f31;
+        }
+
+        @keyframes modalIn {
+            from {
+                opacity: 0;
+                transform: translateY(12px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .empty-message {
+            text-align: center;
+            padding: 2rem;
+            color: var(--muted);
+        }
+
+        .empty-message p {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+
+        @media (max-width: 600px) {
+            .wishlist-product {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .wishlist-product img {
+                width: 100%;
+                max-width: 200px;
+            }
+
+            .wishlist-actions {
+                flex-direction: column;
+            }
+
+            .wishlist-actions button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="header-placeholder"></div>
+
+    <main>
+        <div class="wishlist-container">
+            <h2>Meus Favoritos</h2>
+
+            <div id="login-required" style="display: none;">
+                <div class="alert alert-warning">
+                    Você precisa estar logado para acessar seus favoritos
+                </div>
+                <a href="login.html" class="btn-primary">Fazer Login</a>
+            </div>
+
+            <div id="wishlist-content" style="display: none;">
+                <div id="wishlist-list"></div>
+                <div id="pagination" class="pagination"></div>
+            </div>
+
+            <div id="empty-state" style="display: none;">
+                <div class="empty-message">
+                    <p>Você não tem nenhum produto favorito ainda</p>
+                    <a href="search.html" class="btn-primary">Explorar Produtos</a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="favorite-modal-backdrop" id="favorite-remove-modal" aria-hidden="true">
+        <div class="favorite-modal" role="dialog" aria-modal="true" aria-labelledby="favorite-remove-title">
+            <div class="favorite-modal-header">
+                <div class="favorite-modal-icon">&times;</div>
+                <h3 id="favorite-remove-title">Remover dos favoritos?</h3>
+                <p>
+                    Voc&ecirc; vai retirar <strong id="favorite-remove-name">este produto</strong> da sua lista de favoritos.
+                </p>
+            </div>
+            <div class="favorite-modal-actions">
+                <button type="button" class="favorite-modal-cancel" onclick="closeRemoveFavoriteModal()">Cancelar</button>
+                <button type="button" class="favorite-modal-remove" onclick="confirmRemoveFavorite()">Remover</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="footer-placeholder"></div>
+
+    <script src="js/notifications.js?v=2"></script>
+    <script src="js/cart-storage.js"></script>
+    <script src="js/cart.js?v=5"></script>
+    <script src="js/api.js?v=3"></script>
+    <script src="js/common.js?v=18"></script>
+    <script src="js/wishlist.js?v=2"></script>
+    <script>
+        const user = getLoggedUser();
+        const loginRequired = document.getElementById('login-required');
+        const wishlistContent = document.getElementById('wishlist-content');
+        const emptyState = document.getElementById('empty-state');
+        let favoriteToRemove = null;
+        const wishlistList = document.getElementById('wishlist-list');
+
+        function safeProductId(value) {
+            const id = Number(value);
+            return Number.isInteger(id) && id > 0 ? id : 0;
+        }
+
+        function safeProductPrice(value) {
+            const price = Number(value);
+            return Number.isFinite(price) && price >= 0 ? price : 0;
+        }
+
+        if (!user) {
+            loginRequired.style.display = 'block';
+            wishlistContent.style.display = 'none';
+            emptyState.style.display = 'none';
+        } else {
+            loginRequired.style.display = 'none';
+            loadWishlist(1);
+        }
+
+        async function loadWishlist(page = 1) {
+            const data = await Wishlist.getList(page, 10);
+
+            if (!data || data.items.length === 0) {
+                wishlistContent.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            wishlistContent.style.display = 'block';
+            emptyState.style.display = 'none';
+
+            const listHtml = data.items
+                .map(product => {
+                    const productId = safeProductId(product.id);
+                    const productName = String(product.name || 'Produto');
+                    const productImage = safeImageSrc(product.image_url, 'https://via.placeholder.com/120');
+                    const productPrice = safeProductPrice(product.price);
+
+                    return `
+                        <div class="wishlist-product">
+                            <img src="${escapeAttribute(productImage)}" alt="${escapeAttribute(productName)}" loading="lazy" decoding="async" onerror="this.src='https://via.placeholder.com/120'">
+                            <div class="wishlist-product-info">
+                                <h3>${escapeHTML(productName)}</h3>
+                                <div class="wishlist-product-meta">
+                                    <span>${escapeHTML(product.category || 'Sem categoria')}</span> • <span>Estoque: ${escapeHTML(product.stock ?? 0)}</span>
+                                </div>
+                                <div class="wishlist-product-price">${formatBRL(productPrice)}</div>
+                            </div>
+                            <div class="wishlist-actions">
+                                <a href="product.html?id=${encodeURIComponent(productId)}" class="btn-view">Ver Detalhes</a>
+                                <button class="btn-add-cart js-wishlist-add-cart" type="button" data-id="${escapeAttribute(productId)}" data-name="${escapeAttribute(productName)}" data-price="${escapeAttribute(productPrice)}" data-image="${escapeAttribute(productImage)}">
+                                    Adicionar ao Carrinho
+                                </button>
+                                <button class="btn-remove js-wishlist-remove" type="button" data-id="${escapeAttribute(productId)}" data-name="${escapeAttribute(productName)}" title="Remover dos favoritos">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                })
+                .join('');
+
+            wishlistList.innerHTML = listHtml;
+
+            // Paginação
+            if (data.pagination.totalPages > 1) {
+                let paginationHtml = '';
+                for (let i = 1; i <= data.pagination.totalPages; i++) {
+                    paginationHtml += `
+                        <button
+                            class="${i === page ? 'active' : ''}"
+                            onclick="loadWishlist(${i})"
+                            style="${i === page ? 'background: var(--accent); color: white;' : ''} padding: 0.5rem 0.75rem; margin: 0 0.25rem; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;"
+                        >
+                            ${i}
+                        </button>
+                    `;
+                }
+                document.getElementById('pagination').innerHTML = paginationHtml;
+            }
+        }
+
+        function openRemoveFavoriteModal(productId, productName) {
+            favoriteToRemove = productId;
+            document.getElementById('favorite-remove-name').textContent = productName || 'este produto';
+            const modal = document.getElementById('favorite-remove-modal');
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeRemoveFavoriteModal() {
+            favoriteToRemove = null;
+            const modal = document.getElementById('favorite-remove-modal');
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        async function confirmRemoveFavorite() {
+            if (!favoriteToRemove) return;
+
+            const productId = favoriteToRemove;
+            closeRemoveFavoriteModal();
+
+            const success = await Wishlist.remove(productId);
+            if (success) {
+                loadWishlist();
+            }
+        }
+
+        document.getElementById('favorite-remove-modal').addEventListener('click', (event) => {
+            if (event.target.id === 'favorite-remove-modal') {
+                closeRemoveFavoriteModal();
+            }
+        });
+
+        wishlistList.addEventListener('click', (event) => {
+            const addButton = event.target.closest('.js-wishlist-add-cart');
+            if (addButton) {
+                addToCartFromWishlist(
+                    safeProductId(addButton.dataset.id),
+                    addButton.dataset.name,
+                    safeProductPrice(addButton.dataset.price),
+                    addButton.dataset.image
+                );
+                return;
+            }
+
+            const removeButton = event.target.closest('.js-wishlist-remove');
+            if (removeButton) {
+                openRemoveFavoriteModal(safeProductId(removeButton.dataset.id), removeButton.dataset.name);
+            }
+        });
+
+        function addToCartFromWishlist(productId, name, price, image) {
+            Cart.addItem(
+                {
+                    id: productId,
+                    name,
+                    price,
+                    image_url: image,
+                },
+                null,
+                1
+            );
+            Notifications.success('Adicionado ao carrinho!');
+        }
+    </script>
+</body>
+</html>

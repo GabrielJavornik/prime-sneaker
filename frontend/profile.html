@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Meu Perfil - Prime Sneaker</title>
+    <link rel="stylesheet" href="css/style.css?v=31" />
+    <style>
+        .account-wrapper {
+            display: flex;
+            min-height: calc(100vh - 200px);
+        }
+
+        .account-sidebar {
+            width: 250px;
+            background: #f9f9f9;
+            padding: 2rem 0;
+            border-right: 1px solid #e5e5e5;
+        }
+
+        .account-sidebar h2 {
+            font-size: 0.9rem;
+            color: var(--muted);
+            padding: 0 1.5rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .account-sidebar nav a {
+            display: block;
+            padding: 0.75rem 1.5rem;
+            color: var(--primary);
+            text-decoration: none;
+            border-left: 3px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .account-sidebar nav a:hover,
+        .account-sidebar nav a.active {
+            background: rgba(212, 175, 55, 0.1);
+            border-left-color: var(--accent);
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .account-content {
+            flex: 1;
+            padding: 2rem;
+        }
+
+        .content-header {
+            margin-bottom: 2rem;
+        }
+
+        .content-header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .user-greeting {
+            font-size: 0.95rem;
+            color: var(--muted);
+        }
+
+        .user-greeting a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .content-description {
+            background: #f9f9f9;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .content-description p {
+            margin: 0;
+            color: var(--muted);
+        }
+
+        .content-description a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+
+        .account-card {
+            background: white;
+            border: 1px solid #e5e5e5;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .account-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .card-icon {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: var(--accent);
+        }
+
+        .account-card h3 {
+            margin: 0;
+            font-size: 1rem;
+            color: var(--primary);
+        }
+
+        .tab-content {
+            display: none !important;
+        }
+
+        .tab-content.active {
+            display: block !important;
+        }
+
+        .form-section {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid #e5e5e5;
+            margin-bottom: 2rem;
+        }
+
+        .form-section h3 {
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+            color: var(--primary);
+        }
+
+        .profile-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .info-row {
+            padding: 0.75rem 0;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: var(--muted);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+
+        .info-value {
+            color: var(--primary);
+            margin-top: 0.25rem;
+        }
+
+        .address-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            border: 1px solid #e5e5e5;
+        }
+
+        .address-card.default {
+            border: 2px solid var(--accent);
+            background: rgba(212, 175, 55, 0.05);
+        }
+
+        .address-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .address-badge {
+            background: var(--accent);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+        }
+
+        .address-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .address-actions button {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: #f0f0f0;
+            color: var(--primary);
+            transition: all 0.2s;
+        }
+
+        .address-actions button:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-danger {
+            background: #ff4444 !important;
+            color: white !important;
+        }
+
+        .btn-danger:hover {
+            background: #cc0000 !important;
+        }
+
+        .btn-secondary {
+            background: #007bff !important;
+            color: white !important;
+        }
+
+        @media (max-width: 1024px) {
+            .account-wrapper {
+                flex-direction: column;
+            }
+
+            .account-sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #e5e5e5;
+                display: flex;
+                overflow-x: auto;
+                padding: 1rem 0;
+            }
+
+            .account-sidebar h2 {
+                display: none;
+            }
+
+            .account-sidebar nav {
+                display: flex;
+                gap: 0;
+                width: 100%;
+            }
+
+            .account-sidebar nav a {
+                white-space: nowrap;
+                padding: 0.75rem 1rem;
+                border-left: none;
+                border-bottom: 3px solid transparent;
+            }
+
+            .account-sidebar nav a.active {
+                border-left: none;
+                border-bottom-color: var(--accent);
+            }
+
+            .cards-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .account-sidebar nav {
+                flex-wrap: wrap;
+            }
+
+            .account-sidebar nav a {
+                flex: 1 1 calc(50% - 0.5rem);
+                padding: 0.5rem;
+                font-size: 0.85rem;
+            }
+
+            .cards-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .profile-info {
+                grid-template-columns: 1fr;
+            }
+
+            .account-content {
+                padding: 1rem;
+            }
+        }
+
+        #login-required {
+            text-align: center;
+            padding: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div id="header-placeholder"></div>
+
+    <main>
+        <div id="login-required" style="display: none;">
+            <div class="alert alert-warning">
+                Você precisa estar logado para acessar esta página
+            </div>
+            <a href="login.html" class="btn-primary">Fazer Login</a>
+        </div>
+
+        <div id="profile-content" style="display: none;">
+            <div class="account-wrapper">
+                <!-- Sidebar -->
+                <div class="account-sidebar">
+                    <h2>Minha Conta</h2>
+                    <nav id="sidebar-nav">
+                        <a class="active" data-tab="painel" style="cursor: pointer;">Painel</a>
+                        <a href="orders.html">Pedidos</a>
+                        <a data-tab="enderecos" style="cursor: pointer;">Endereços</a>
+                        <a data-tab="detalhes" style="cursor: pointer;">Detalhes da conta</a>
+                        <a href="wishlist.html">Lista de Desejos</a>
+                        <a data-tab="sair" style="cursor: pointer;">Sair</a>
+                    </nav>
+                </div>
+
+                <!-- Main Content -->
+                <div class="account-content">
+                    <!-- Painel Tab -->
+                    <div id="painel" class="tab-content active">
+                        <div class="content-header">
+                            <h1>MINHA CONTA</h1>
+                            <div class="user-greeting">
+                                Olá, <span id="user-name">...</span> (não é <span id="user-email">...</span>? <a href="#" onclick="logout(); return false;">Sair</a>)
+                            </div>
+                        </div>
+
+                        <div class="content-description">
+                            <p>A partir do painel de controle de sua conta, você pode ver suas <a href="orders.html">compras recentes</a>, gerenciar seus <a href="#">endereços de entrega e cobrança</a>, e editar sua <a href="#">senha e detalhes da conta</a>.</p>
+                        </div>
+
+                        <div class="cards-grid">
+                            <a href="orders.html" class="account-card">
+                                <div class="card-icon">PED</div>
+                                <h3>Pedidos</h3>
+                            </a>
+                            <a href="#" onclick="switchTab('enderecos'); return false;" class="account-card">
+                                <div class="card-icon">END</div>
+                                <h3>Endereços</h3>
+                            </a>
+                            <a href="#" onclick="switchTab('detalhes'); return false;" class="account-card">
+                                <div class="card-icon">CONTA</div>
+                                <h3>Detalhes da conta</h3>
+                            </a>
+                            <a href="wishlist.html" class="account-card">
+                                <div class="card-icon">FAV</div>
+                                <h3>Lista de Desejos</h3>
+                            </a>
+                            <a href="#" onclick="logout(); return false;" class="account-card">
+                                <div class="card-icon">SAIR</div>
+                                <h3>Sair</h3>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Endereços Tab -->
+                    <div id="enderecos" class="tab-content">
+                        <p style="color: var(--muted); margin-bottom: 2rem;">Os endereços a seguir serão usados na página de finalização de compra por padrão.</p>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 3rem;">
+                            <!-- Endereço de Cobrança -->
+                            <div style="background: white; padding: 1.5rem; border: 1px solid #e5e5e5; border-radius: 8px;">
+                                <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.5px;">Endereço de Cobrança</h3>
+                                <a href="#" onclick="editBillingAddress(); return false;" style="color: #00bcd4; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem;">
+                                    Editar Endereço de cobrança
+                                </a>
+                                <div id="billing-address-display" style="color: var(--muted); line-height: 1.8;">
+                                    <p style="margin: 0;">Nenhum endereço configurado</p>
+                                </div>
+                            </div>
+
+                            <!-- Endereço de Entrega -->
+                            <div style="background: white; padding: 1.5rem; border: 1px solid #e5e5e5; border-radius: 8px;">
+                                <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.5px;">Endereço de Entrega</h3>
+                                <a href="#" onclick="editDeliveryAddress(); return false;" style="color: #00bcd4; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem;">
+                                    Editar Endereço de entrega
+                                </a>
+                                <div id="delivery-address-display" style="color: var(--muted); line-height: 1.8;">
+                                    <p style="margin: 0;">Nenhum endereço configurado</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="addresses-list" style="display: none;">
+                            <h3 style="font-size: 1rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1rem;">Endereços salvos</h3>
+                            <div id="all-addresses"></div>
+                        </div>
+                    </div>
+
+                    <!-- Detalhes Tab -->
+                    <div id="detalhes" class="tab-content">
+                        <div class="form-section">
+                            <h3>Informações Pessoais</h3>
+                            <div class="profile-info" id="profile-info"></div>
+                        </div>
+
+                        <div class="form-section">
+                            <h3>Editar Dados</h3>
+                            <div id="alert-area"></div>
+                            <form id="edit-form">
+                                <div class="form-group">
+                                    <label>Nome Completo</label>
+                                    <input type="text" id="name" required minlength="3" />
+                                </div>
+                                <div class="form-group">
+                                    <label>Email</label>
+                                    <input type="email" id="email" required />
+                                </div>
+                                <div class="form-group">
+                                    <label>Telefone</label>
+                                    <input type="tel" id="phone" placeholder="(34) 99999-9999" maxlength="15" inputmode="numeric" />
+                                </div>
+                                <div class="form-group">
+                                    <label>CPF</label>
+                                    <input type="text" id="cpf" placeholder="000.000.000-00" maxlength="14" inputmode="numeric" />
+                                </div>
+                                <button type="submit" class="btn-primary">Salvar Alterações</button>
+                            </form>
+                        </div>
+
+                        <div class="form-section">
+                            <h3>Mudar Senha</h3>
+                            <div id="password-alert"></div>
+                            <form id="password-form">
+                                <div class="form-group">
+                                    <label>Senha Atual</label>
+                                    <input type="password" id="current-password" required />
+                                </div>
+                                <div class="form-group">
+                                    <label>Nova Senha</label>
+                                    <input type="password" id="new-password" required minlength="8" />
+                                </div>
+                                <div class="form-group">
+                                    <label>Confirmar Nova Senha</label>
+                                    <input type="password" id="confirm-new-password" required minlength="8" />
+                                </div>
+                                <button type="submit" class="btn-primary">Atualizar Senha</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="footer-placeholder"></div>
+
+    <!-- Modal para editar endereço -->
+    <div id="address-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto;">
+        <div style="background: white; max-width: 900px; margin: 2rem auto; border-radius: 8px; padding: 2rem; position: relative;">
+            <button onclick="closeAddressModal()" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+            <h2 id="modal-title" style="margin-top: 0;">Endereço de Cobrança</h2>
+            <div id="address-alert"></div>
+            <form id="address-form">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group">
+                        <label>Nome *</label>
+                        <input type="text" id="addr-first-name" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Sobrenome *</label>
+                        <input type="text" id="addr-last-name" required />
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>CPF *</label>
+                    <input type="text" id="addr-cpf" maxlength="14" required />
+                </div>
+
+                <div class="form-group">
+                    <label>País *</label>
+                    <select id="addr-country" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e5e5; border-radius: 4px;" required>
+                        <option value="Brasil">Brasil</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>CEP *</label>
+                    <input type="text" id="addr-cep" placeholder="00000-000" required />
+                </div>
+
+                <div class="form-group">
+                    <label>Endereço *</label>
+                    <input type="text" id="addr-street" placeholder="Rua, Avenida..." required />
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group">
+                        <label>Número *</label>
+                        <input type="text" id="addr-number" placeholder="123" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Complemento</label>
+                        <input type="text" id="addr-complement" placeholder="Apto, sala..." />
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Bairro (opcional)</label>
+                    <input type="text" id="addr-neighborhood" />
+                </div>
+
+                <div class="form-group">
+                    <label>Cidade *</label>
+                    <input type="text" id="addr-city" required />
+                </div>
+
+                <div class="form-group">
+                    <label>Estado *</label>
+                    <select id="addr-state" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e5e5; border-radius: 4px;" required>
+                        <option value="">Selecione um estado</option>
+                        <option value="AC">Acre</option>
+                        <option value="AL">Alagoas</option>
+                        <option value="AP">Amapá</option>
+                        <option value="AM">Amazonas</option>
+                        <option value="BA">Bahia</option>
+                        <option value="CE">Ceará</option>
+                        <option value="DF">Distrito Federal</option>
+                        <option value="ES">Espírito Santo</option>
+                        <option value="GO">Goiás</option>
+                        <option value="MA">Maranhão</option>
+                        <option value="MT">Mato Grosso</option>
+                        <option value="MS">Mato Grosso do Sul</option>
+                        <option value="MG">Minas Gerais</option>
+                        <option value="PA">Pará</option>
+                        <option value="PB">Paraíba</option>
+                        <option value="PR">Paraná</option>
+                        <option value="PE">Pernambuco</option>
+                        <option value="PI">Piauí</option>
+                        <option value="RJ">Rio de Janeiro</option>
+                        <option value="RN">Rio Grande do Norte</option>
+                        <option value="RS">Rio Grande do Sul</option>
+                        <option value="RO">Rondônia</option>
+                        <option value="RR">Roraima</option>
+                        <option value="SC">Santa Catarina</option>
+                        <option value="SP">São Paulo</option>
+                        <option value="SE">Sergipe</option>
+                        <option value="TO">Tocantins</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Telefone *</label>
+                    <input type="tel" id="addr-phone" maxlength="15" required />
+                </div>
+
+                <div class="form-group">
+                    <label>Endereço de e-mail *</label>
+                    <input type="email" id="addr-email" required />
+                </div>
+
+                <button type="submit" style="background: #00bcd4; color: white; padding: 0.75rem 2rem; border: none; border-radius: 4px; font-weight: 600; text-transform: uppercase; cursor: pointer; font-size: 0.9rem;">Salvar Endereços</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/notifications.js?v=2"></script>
+    <script src="js/cart-storage.js"></script>
+    <script src="js/cart.js?v=5"></script>
+    <script src="js/api.js?v=2"></script>
+    <script src="js/common.js?v=18"></script>
+
+    <!-- Função para trocar abas -->
+    <script>
+        window.ativarAba = function(tabName) {
+            var i, tabs, links, selectedTab, selectedLinks;
+
+            // Remove active de TODOS os tabs
+            tabs = document.querySelectorAll('.tab-content');
+            for (i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove('active');
+            }
+
+            // Remove active de TODOS os links
+            links = document.querySelectorAll('#sidebar-nav a');
+            for (i = 0; i < links.length; i++) {
+                links[i].classList.remove('active');
+            }
+
+            // Adiciona active ao tab selecionado
+            selectedTab = document.getElementById(tabName);
+            if (selectedTab) {
+                selectedTab.classList.add('active');
+            }
+
+            // Adiciona active ao link selecionado
+            selectedLinks = document.querySelectorAll('#sidebar-nav a[data-tab="' + tabName + '"]');
+            for (i = 0; i < selectedLinks.length; i++) {
+                selectedLinks[i].classList.add('active');
+            }
+        };
+
+        window.switchTab = function(tabName) {
+            window.ativarAba(tabName);
+        };
+    </script>
+    <script>
+        var user = getLoggedUser();
+        var loginRequired = document.getElementById('login-required');
+        var profileContent = document.getElementById('profile-content');
+
+        if (!user) {
+            loginRequired.style.display = 'block';
+            profileContent.style.display = 'none';
+        } else {
+            loginRequired.style.display = 'none';
+            profileContent.style.display = 'block';
+            loadProfile();
+            loadAddresses();
+            aplicarMascarasCpfTelefone();
+
+            // Configurar listeners para abas
+            var links = document.querySelectorAll('#sidebar-nav a[data-tab]');
+            for (var i = 0; i < links.length; i++) {
+                links[i].addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var tabName = this.getAttribute('data-tab');
+
+                    if (tabName === 'sair') {
+                        logout();
+                    } else {
+                        window.ativarAba(tabName);
+                    }
+                    return false;
+                });
+            }
+
+            // Verifica se há uma aba especificada na URL
+            var params = new URLSearchParams(window.location.search);
+            var tabParam = params.get('tab');
+            if (tabParam) {
+                setTimeout(function() {
+                    window.ativarAba(tabParam);
+                }, 100);
+            }
+        }
+
+        function formatarCPF(valor) {
+            const d = valor.replace(/\D/g, '').slice(0, 11);
+            let out = d;
+            if (d.length > 9) out = `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
+            else if (d.length > 6) out = `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6)}`;
+            else if (d.length > 3) out = `${d.slice(0,3)}.${d.slice(3)}`;
+            return out;
+        }
+
+        function formatarTelefone(valor) {
+            const d = valor.replace(/\D/g, '').slice(0, 11);
+            if (d.length === 0) return '';
+            if (d.length <= 2) return `(${d}`;
+            if (d.length <= 6) return `(${d.slice(0,2)}) ${d.slice(2)}`;
+            if (d.length <= 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
+            return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+        }
+
+        function aplicarMascarasCpfTelefone() {
+            const cpf = document.getElementById('cpf');
+            const phone = document.getElementById('phone');
+            if (cpf) {
+                cpf.addEventListener('input', (e) => {
+                    e.target.value = formatarCPF(e.target.value);
+                });
+                cpf.addEventListener('blur', (e) => {
+                    e.target.value = formatarCPF(e.target.value);
+                });
+            }
+            if (phone) {
+                phone.addEventListener('input', (e) => {
+                    e.target.value = formatarTelefone(e.target.value);
+                });
+                phone.addEventListener('blur', (e) => {
+                    e.target.value = formatarTelefone(e.target.value);
+                });
+            }
+        }
+
+        function safeDisplay(value, fallback = 'Não informado') {
+            const text = String(value ?? '').trim();
+            return escapeHTML(text || fallback);
+        }
+
+        function safeId(value) {
+            const id = Number(value);
+            return Number.isInteger(id) && id > 0 ? id : 0;
+        }
+
+        async function loadProfile() {
+            try {
+                const token = sessionStorage.getItem('token');
+                const response = await fetch('/api/users/profile', {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+
+                const userData = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(userData.error || 'Erro ao carregar perfil');
+                }
+
+                document.getElementById('user-name').textContent = (userData.name || '').split(' ')[0];
+                document.getElementById('user-email').textContent = userData.email;
+
+                document.getElementById('profile-info').innerHTML = `
+                    <div class="info-row">
+                        <span class="info-label">Nome:</span>
+                        <span class="info-value">${safeDisplay(userData.name)}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Email:</span>
+                        <span class="info-value">${safeDisplay(userData.email)}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Telefone:</span>
+                        <span class="info-value">${safeDisplay(userData.phone)}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">CPF:</span>
+                        <span class="info-value">${safeDisplay(userData.cpf)}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Membro desde:</span>
+                        <span class="info-value">${new Date(userData.created_at).toLocaleDateString('pt-BR')}</span>
+                    </div>
+                `;
+
+                document.getElementById('name').value = userData.name;
+                document.getElementById('email').value = userData.email;
+                document.getElementById('phone').value = formatarTelefone(userData.phone || '');
+                document.getElementById('cpf').value = formatarCPF(userData.cpf || '');
+            } catch (err) {
+                Notifications.error('Erro ao carregar perfil: ' + err.message);
+            }
+        }
+
+        async function loadAddresses() {
+            try {
+                const token = sessionStorage.getItem('token');
+                if (!token) {
+                    Notifications.error('Token não encontrado. Faça login novamente.');
+                    return;
+                }
+
+                const response = await fetch('/api/addresses', {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || `Erro HTTP ${response.status}`);
+                }
+
+                const addresses = await response.json();
+
+                const billingDisplay = document.getElementById('billing-address-display');
+                const deliveryDisplay = document.getElementById('delivery-address-display');
+                const addressesList = document.getElementById('addresses-list');
+                const allAddresses = document.getElementById('all-addresses');
+
+                if (!billingDisplay || !deliveryDisplay) return;
+
+                if (!Array.isArray(addresses) || addresses.length === 0) {
+                    billingDisplay.innerHTML = '<p style="margin: 0;">Nenhum endereço configurado</p>';
+                    deliveryDisplay.innerHTML = '<p style="margin: 0;">Nenhum endereço configurado</p>';
+                    if (addressesList) addressesList.style.display = 'none';
+                    return;
+                }
+
+                // Separa endereços por tipo
+                const billingAddr = addresses.find(a => a.type === 'billing' || a.is_default);
+                const deliveryAddr = addresses.find(a => a.type === 'delivery' || a.is_default);
+
+                function formatAddress(addr) {
+                    if (!addr) return '<p style="margin: 0;">Nenhum endereço configurado</p>';
+                    return `
+                        <p style="margin: 0; font-weight: 500;">${safeDisplay(addr.street, 'Rua não informada')}, ${safeDisplay(addr.number, 's/n')}</p>
+                        ${addr.complement ? `<p style="margin: 0.25rem 0; font-size: 0.9rem;">${escapeHTML(addr.complement)}</p>` : ''}
+                        <p style="margin: 0.25rem 0; font-size: 0.9rem;">${safeDisplay(addr.city, 'Cidade não informada')}</p>
+                        <p style="margin: 0.25rem 0; font-size: 0.9rem;">${safeDisplay(addr.state, 'Estado não informado')}</p>
+                        <p style="margin: 0.25rem 0; font-size: 0.9rem;">${safeDisplay(addr.cep, 'CEP não informado')}</p>
+                    `;
+                }
+
+                billingDisplay.innerHTML = formatAddress(billingAddr);
+                deliveryDisplay.innerHTML = formatAddress(deliveryAddr);
+
+                // Mostra lista de todos os endereços se houver mais de 2
+                if (addressesList && allAddresses && addresses.length > 0) {
+                    addressesList.style.display = 'block';
+                    allAddresses.innerHTML = addresses.map(addr => `
+                        <div class="address-card ${addr.is_default ? 'default' : ''}">
+                            <div class="address-header">
+                                <div>
+                                    <strong>${safeDisplay(addr.street, 'Rua não informada')}, ${safeDisplay(addr.number, 's/n')}</strong>
+                                    ${addr.complement ? `<br><small>${escapeHTML(addr.complement)}</small>` : ''}
+                                    <br><small>${safeDisplay(addr.city, 'Cidade não informada')} - ${safeDisplay(addr.state, 'Estado não informado')}</small>
+                                </div>
+                                ${addr.is_default ? '<span class="address-badge">Padrão</span>' : ''}
+                            </div>
+                            <div class="address-actions">
+                                <button type="button" class="btn-danger" onclick="deleteAddress(${safeId(addr.id)})">Deletar</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (err) {
+                Notifications.error('Erro ao carregar endereços: ' + err.message);
+            }
+        }
+
+        let currentAddressType = 'billing';
+
+        function editBillingAddress() {
+            currentAddressType = 'billing';
+            document.getElementById('modal-title').textContent = 'Endereço de Cobrança';
+            const token = sessionStorage.getItem('token');
+            const user = getLoggedUser();
+
+            // Preenche campos com dados do usuário
+            document.getElementById('addr-first-name').value = (user.name || '').split(' ')[0] || '';
+            document.getElementById('addr-last-name').value = (user.name || '').split(' ').slice(1).join(' ') || '';
+            document.getElementById('addr-cpf').value = user.cpf || '';
+            document.getElementById('addr-phone').value = user.phone || '';
+            document.getElementById('addr-email').value = user.email || '';
+
+            document.getElementById('address-modal').style.display = 'block';
+        }
+
+        function editDeliveryAddress() {
+            currentAddressType = 'delivery';
+            document.getElementById('modal-title').textContent = 'Endereço de Entrega';
+            const user = getLoggedUser();
+
+            // Preenche campos com dados do usuário
+            document.getElementById('addr-first-name').value = (user.name || '').split(' ')[0] || '';
+            document.getElementById('addr-last-name').value = (user.name || '').split(' ').slice(1).join(' ') || '';
+            document.getElementById('addr-cpf').value = user.cpf || '';
+            document.getElementById('addr-phone').value = user.phone || '';
+            document.getElementById('addr-email').value = user.email || '';
+
+            document.getElementById('address-modal').style.display = 'block';
+        }
+
+        function closeAddressModal() {
+            document.getElementById('address-modal').style.display = 'none';
+            document.getElementById('address-form').reset();
+        }
+
+        document.getElementById('address-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'address-modal') {
+                closeAddressModal();
+            }
+        });
+
+        // Máscaras para CPF e Telefone
+        const cpfInput = document.getElementById('addr-cpf');
+        if (cpfInput) {
+            cpfInput.addEventListener('input', (e) => {
+                e.target.value = formatarCPF(e.target.value);
+            });
+        }
+
+        const phoneInput = document.getElementById('addr-phone');
+        if (phoneInput) {
+            phoneInput.addEventListener('input', (e) => {
+                e.target.value = formatarTelefone(e.target.value);
+            });
+        }
+
+        let cepTimeout;
+        const cepInput = document.getElementById('addr-cep');
+        if (cepInput) {
+            cepInput.addEventListener('input', async (e) => {
+                clearTimeout(cepTimeout);
+                const cep = e.target.value.replace(/\D/g, '');
+
+                if (cep.length !== 8) return;
+
+                cepTimeout = setTimeout(async () => {
+                    try {
+                        const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                        const data = await response.json();
+
+                        if (data.erro) {
+                            Notifications.error('CEP não encontrado');
+                            return;
+                        }
+
+                        document.getElementById('addr-street').value = data.logradouro || '';
+                        document.getElementById('addr-city').value = data.localidade || '';
+                        document.getElementById('addr-state').value = data.uf || '';
+                    } catch (err) {
+                        Notifications.error('Erro ao buscar CEP');
+                    }
+                }, 500);
+            });
+        }
+
+        const addressForm = document.getElementById('address-form');
+        if (addressForm) {
+            addressForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const token = sessionStorage.getItem('token');
+                document.getElementById('address-alert').innerHTML = '';
+
+                const addressData = {
+                    type: currentAddressType,
+                    cep: document.getElementById('addr-cep').value,
+                    street: document.getElementById('addr-street').value,
+                    number: document.getElementById('addr-number').value,
+                    complement: document.getElementById('addr-complement').value || null,
+                    neighborhood: document.getElementById('addr-neighborhood').value || null,
+                    city: document.getElementById('addr-city').value,
+                    state: document.getElementById('addr-state').value,
+                    country: document.getElementById('addr-country').value,
+                };
+
+                try {
+                    const response = await fetch('/api/addresses', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`,
+                        },
+                        body: JSON.stringify(addressData),
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        document.getElementById('address-alert').innerHTML = `<div class="alert alert-success">Dados salvos com sucesso!</div>`;
+                        Notifications.success('Endereço salvo com sucesso!');
+                        closeAddressModal();
+                        loadAddresses();
+                    } else {
+                        document.getElementById('address-alert').innerHTML = `<div class="alert alert-error">${escapeHTML(data.error || 'Erro ao salvar endereço')}</div>`;
+                    }
+                } catch (err) {
+                    document.getElementById('address-alert').innerHTML = `<div class="alert alert-error">Erro: ${escapeHTML(err.message)}</div>`;
+                }
+            });
+        }
+
+        async function deleteAddress(id) {
+            if (!confirm('Tem certeza que deseja deletar este endereço?')) return;
+
+            try {
+                const token = sessionStorage.getItem('token');
+                const response = await fetch(`/api/addresses/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+
+                if (response.ok) {
+                    Notifications.success('Endereço removido com sucesso!');
+                    loadAddresses();
+                } else {
+                    const data = await response.json();
+                    Notifications.error(data.error || 'Erro ao deletar endereço');
+                }
+            } catch (err) {
+                Notifications.error('Erro: ' + err.message);
+            }
+        }
+
+        async function setDefaultAddress(id) {
+            try {
+                const token = sessionStorage.getItem('token');
+                const response = await fetch(`/api/addresses/${id}/default`, {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+
+                if (response.ok) {
+                    Notifications.success('Endereço definido como padrão!');
+                    loadAddresses();
+                } else {
+                    const data = await response.json();
+                    Notifications.error(data.error || 'Erro ao definir endereço padrão');
+                }
+            } catch (err) {
+                Notifications.error('Erro: ' + err.message);
+            }
+        }
+
+        const editForm = document.getElementById('edit-form');
+        if (editForm) {
+            editForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const token = sessionStorage.getItem('token');
+                const name = document.getElementById('name').value;
+                const email = document.getElementById('email').value;
+                const phone = document.getElementById('phone').value;
+                const cpf = document.getElementById('cpf').value;
+                const alertArea = document.getElementById('alert-area');
+
+                // Limpa mensagens anteriores em toda nova submissao
+                alertArea.innerHTML = '';
+
+                const phoneDigits = phone.replace(/\D/g, '');
+                const cpfDigits = cpf.replace(/\D/g, '');
+                if (phoneDigits && phoneDigits.length !== 10 && phoneDigits.length !== 11) {
+                    alertArea.innerHTML = `<div class="alert alert-error">Telefone deve ter 10 ou 11 digitos (com DDD).</div>`;
+                    return;
+                }
+                if (cpfDigits && cpfDigits.length !== 11) {
+                    alertArea.innerHTML = `<div class="alert alert-error">CPF deve ter exatamente 11 digitos.</div>`;
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/users/profile', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({ name, email, phone, cpf }),
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        sessionStorage.setItem('user', JSON.stringify(data.user));
+                        localStorage.removeItem('user');
+                        alertArea.innerHTML = `<div class="alert alert-success">Dados salvos com sucesso!</div>`;
+                        Notifications.success('Perfil atualizado com sucesso!');
+                        loadProfile();
+                    } else {
+                        alertArea.innerHTML = `<div class="alert alert-error">${escapeHTML(data.error || 'Erro ao salvar perfil')}</div>`;
+                    }
+                } catch (err) {
+                    alertArea.innerHTML = `<div class="alert alert-error">Erro: ${escapeHTML(err.message)}</div>`;
+                }
+            });
+        }
+
+        const passwordForm = document.getElementById('password-form');
+        if (passwordForm) {
+            passwordForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const token = sessionStorage.getItem('token');
+                const currentPassword = document.getElementById('current-password').value;
+                const newPassword = document.getElementById('new-password').value;
+                const confirmNewPassword = document.getElementById('confirm-new-password').value;
+                const passwordAlert = document.getElementById('password-alert');
+                passwordAlert.innerHTML = '';
+
+                if (newPassword !== confirmNewPassword) {
+                    passwordAlert.innerHTML = '<div class="alert alert-error">As novas senhas não coincidem</div>';
+                    return;
+                }
+
+                const passwordError = getStrongPasswordError(newPassword);
+                if (passwordError) {
+                    passwordAlert.innerHTML = `<div class="alert alert-error">${escapeHTML(passwordError)}</div>`;
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/users/profile', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({ currentPassword, newPassword }),
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        passwordAlert.innerHTML = `<div class="alert alert-success">Dados salvos com sucesso!</div>`;
+                        Notifications.success('Senha alterada com sucesso!');
+                        passwordForm.reset();
+                    } else {
+                        passwordAlert.innerHTML = `<div class="alert alert-error">${escapeHTML(data.error || 'Erro ao alterar senha')}</div>`;
+                    }
+                } catch (err) {
+                    passwordAlert.innerHTML = `<div class="alert alert-error">Erro: ${escapeHTML(err.message)}</div>`;
+                }
+            });
+        }
+    </script>
+</body>
+</html>

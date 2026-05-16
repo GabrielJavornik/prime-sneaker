@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cat&aacute;logo - Prime Sneaker</title>
+    <link rel="stylesheet" href="css/style.css?v=31" />
+</head>
+<body>
+    <div id="header-placeholder"></div>
+
+    <main style="padding: 3rem 2rem;">
+        <h2 class="section-title" id="page-title" style="text-align: left; display: inline-block; width: auto;">Cat&aacute;logo</h2>
+
+        <div class="search-layout">
+            <!-- Sidebar filtros -->
+            <aside class="filters">
+                <h3>Filtros</h3>
+                <form id="filter-form">
+                    <div class="filter-group">
+                        <label>Buscar</label>
+                        <input type="text" id="f-q" placeholder="Ex: Nike" />
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Categoria</label>
+                        <select id="f-categoria">
+                            <option value="">Todas</option>
+                            <option value="casual">Casual</option>
+                            <option value="esportivo">Esportivo</option>
+                            <option value="formal">Formal</option>
+                            <option value="trekking">Trekking</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Marca</label>
+                        <input type="text" id="f-brand" placeholder="Ex: Nike, Vans" />
+                    </div>
+
+                    <div class="filter-group">
+                        <label>P&uacute;blico</label>
+                        <select id="f-gender">
+                            <option value="">Todos</option>
+                            <option value="masculino">Masculino</option>
+                            <option value="feminino">Feminino</option>
+                            <option value="infantil">Infantil</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Destaque</label>
+                        <select id="f-feature">
+                            <option value="">Todos</option>
+                            <option value="launch">Lan&ccedil;amentos</option>
+                            <option value="outlet">Outlet</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Tamanho</label>
+                        <select id="f-tamanho">
+                            <option value="">Qualquer</option>
+                            <option>34</option><option>35</option><option>36</option>
+                            <option>37</option><option>38</option>
+                            <option>39</option><option>40</option><option>41</option>
+                            <option>42</option><option>43</option><option>44</option>
+                            <option>45</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Faixa de pre&ccedil;o</label>
+                        <div class="price-row">
+                            <input type="number" id="f-min" placeholder="Min" min="0" />
+                            <input type="number" id="f-max" placeholder="Max" min="0" />
+                        </div>
+                    </div>
+
+                    <div class="filter-actions">
+                        <button type="submit" class="btn-apply">Buscar</button>
+                        <button type="button" class="btn-clear" id="btn-clear">Limpar</button>
+                    </div>
+                </form>
+            </aside>
+
+            <!-- Resultados -->
+            <section>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+                    <div id="result-meta" style="color: var(--muted);"></div>
+                    <div>
+                        <label style="color: var(--text); font-weight: 500;">Ordenar por:</label>
+                        <select id="sort-select" style="margin-left: 0.5rem; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
+                            <option value="recent">Mais Recentes</option>
+                            <option value="price_low">Menor Pre&ccedil;o</option>
+                            <option value="price_high">Maior Pre&ccedil;o</option>
+                            <option value="name">Alfab&eacute;tico</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="product-grid" id="results">
+                    <div class="loading">Carregando...</div>
+                </div>
+                <div class="pagination" id="pagination"></div>
+            </section>
+        </div>
+    </main>
+
+    <div id="footer-placeholder"></div>
+
+    <script src="js/notifications.js?v=2"></script>
+    <script src="js/cart-storage.js"></script>
+    <script src="js/cart.js?v=5"></script>
+    <script src="js/wishlist.js?v=2"></script>
+    <script src="js/api.js?v=3"></script>
+    <script src="js/common.js?v=18"></script>
+    <script src="js/search.js?v=11"></script>
+</body>
+</html>

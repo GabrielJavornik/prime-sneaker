@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login Admin - Prime Sneaker</title>
+    <style>
+        html.admin-redirecting body {
+            visibility: hidden;
+        }
+    </style>
+    <script>
+        (async function() {
+            const adminToken = sessionStorage.getItem('adminToken');
+            if (!adminToken) return;
+
+            document.documentElement.classList.add('admin-redirecting');
+
+            try {
+                const response = await fetch('/api/admin/session', {
+                    headers: { Authorization: `Bearer ${adminToken}` },
+                });
+                const adminUser = await response.json().catch(() => null);
+
+                if (response.ok && adminUser && (adminUser.is_admin === true || adminUser.isAdmin === true)) {
+                    sessionStorage.setItem('adminUser', JSON.stringify(adminUser));
+                    window.location.replace('adm.html');
+                    return;
+                }
+            } catch (_) {
+                // Se o token falhar, limpamos abaixo e mostramos o login.
+            }
+
+            sessionStorage.removeItem('adminToken');
+            sessionStorage.removeItem('adminUser');
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUser');
+            document.documentElement.classList.remove('admin-redirecting');
+        })();
+    </script>
+    <link rel="stylesheet" href="css/style.css?v=31" />
+    <style>
+        :root {
+            --bg-dark: #09111f;
+            --bg-deep: #131f35;
+            --panel: rgba(9, 17, 31, 0.78);
+            --card: rgba(255, 255, 255, 0.95);
+            --text: #142033;
+            --muted: #647089;
+            --gold: #f6c453;
+            --gold-strong: #e8a917;
+            --accent: #1D4ED8;
+            --danger-bg: rgba(255, 92, 92, 0.12);
+            --danger-border: rgba(255, 92, 92, 0.22);
+            --danger-text: #b42318;
+            --shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            font-family: Bahnschrift, "Segoe UI Variable", "Segoe UI", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(246, 196, 83, 0.22), transparent 28%),
+                radial-gradient(circle at bottom right, rgba(124, 58, 237, 0.22), transparent 26%),
+                linear-gradient(135deg, #060b16 0%, #10192d 50%, #1f2f52 100%);
+            display: grid;
+            place-items: center;
+            padding: 32px 18px;
+            overflow-x: hidden;
+        }
+
+        body::before,
+        body::after {
+            content: "";
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(12px);
+            pointer-events: none;
+        }
+
+        body::before {
+            width: 320px;
+            height: 320px;
+            top: -120px;
+            right: -80px;
+            background: rgba(246, 196, 83, 0.18);
+        }
+
+        body::after {
+            width: 420px;
+            height: 420px;
+            left: -180px;
+            bottom: -180px;
+            background: rgba(29, 78, 216, 0.16);
+        }
+
+        .login-shell {
+            width: min(1080px, 100%);
+            min-height: min(760px, calc(100vh - 64px));
+            display: grid;
+            grid-template-columns: 1.05fr 0.95fr;
+            border-radius: 30px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            animation: entrance 0.7s ease-out;
+        }
+
+        .brand-panel {
+            position: relative;
+            padding: 56px;
+            background:
+                linear-gradient(180deg, rgba(9, 17, 31, 0.78), rgba(9, 17, 31, 0.9)),
+                linear-gradient(145deg, #0c1426 0%, #172744 45%, #291f48 100%);
+            color: #f4f7fb;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .brand-panel::before {
+            content: "";
+            position: absolute;
+            inset: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            pointer-events: none;
+        }
+
+        .brand-panel::after {
+            content: "";
+            position: absolute;
+            width: 280px;
+            height: 280px;
+            right: -70px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: radial-gradient(circle, rgba(246, 196, 83, 0.24) 0%, transparent 65%);
+            pointer-events: none;
+        }
+
+        .brand-top,
+        .brand-bottom {
+            position: relative;
+            z-index: 1;
+        }
+
+        .brand-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #f6d88d;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            font-size: 0.74rem;
+        }
+
+        .brand-title {
+            max-width: 460px;
+            margin-top: 28px;
+            font-size: clamp(2.5rem, 4.3vw, 4.2rem);
+            line-height: 0.96;
+            letter-spacing: -0.04em;
+        }
+
+        .brand-title span {
+            color: var(--gold);
+        }
+
+        .brand-copy {
+            max-width: 470px;
+            margin-top: 22px;
+            color: rgba(244, 247, 251, 0.76);
+            font-size: 1.12rem;
+            line-height: 1.85;
+        }
+
+        .brand-feature-card {
+            margin-top: 40px;
+            max-width: 470px;
+            padding: 28px;
+            border-radius: 26px;
+            background:
+                linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+                rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        }
+
+        .brand-feature-label {
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .brand-feature-card h3 {
+            margin-top: 14px;
+            font-size: 1.65rem;
+            line-height: 1.2;
+            letter-spacing: -0.03em;
+            color: #ffffff;
+        }
+
+        .brand-feature-card p {
+            margin-top: 14px;
+            color: rgba(244, 247, 251, 0.74);
+            font-size: 1rem;
+            line-height: 1.75;
+        }
+
+        .brand-bottom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            color: rgba(255, 255, 255, 0.62);
+            font-size: 0.92rem;
+        }
+
+        .brand-bottom strong {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .login-container {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 249, 252, 0.98));
+            padding: 54px 48px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+        }
+
+        .login-container::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at top right, rgba(29, 78, 216, 0.08), transparent 26%),
+                radial-gradient(circle at bottom left, rgba(246, 196, 83, 0.12), transparent 28%);
+            pointer-events: none;
+        }
+
+        .login-panel-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .brand-logo-wrap {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 18px;
+            border-radius: 22px;
+            background: #fff;
+            box-shadow: 0 16px 35px rgba(20, 32, 51, 0.08);
+            border: 1px solid rgba(20, 32, 51, 0.06);
+            margin-bottom: 22px;
+        }
+
+        .brand-logo-wrap img {
+            display: block;
+            width: min(190px, 100%);
+            height: auto;
+        }
+
+        .admin-icon {
+            width: 68px;
+            height: 68px;
+            border-radius: 22px;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(135deg, #16233d, #253b66);
+            color: var(--gold);
+            box-shadow: 0 18px 30px rgba(22, 35, 61, 0.2);
+            margin-bottom: 18px;
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+        }
+
+        .eyebrow {
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            font-size: 0.76rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .login-container h1 {
+            font-size: clamp(2rem, 3vw, 3rem);
+            line-height: 1;
+            letter-spacing: -0.05em;
+            margin-bottom: 12px;
+        }
+
+        .login-subtitle {
+            color: var(--muted);
+            font-size: 1rem;
+            line-height: 1.7;
+            margin-bottom: 28px;
+            max-width: 420px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: #23314a;
+            margin-bottom: 10px;
+        }
+
+        .input-wrap {
+            position: relative;
+        }
+
+        .input-wrap span {
+            position: absolute;
+            inset: 0 auto 0 16px;
+            display: grid;
+            place-items: center;
+            color: #7d89a1;
+            font-size: 1rem;
+            width: 24px;
+            pointer-events: none;
+        }
+
+        .form-group input {
+            width: 100%;
+            min-height: 58px;
+            border: 1px solid #d8deea;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 0 18px 0 52px;
+            font-size: 1rem;
+            color: var(--text);
+            transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+        }
+
+        .form-group input::placeholder {
+            color: #98a3b8;
+        }
+
+        .form-group input:hover {
+            border-color: #b9c4d9;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 5px rgba(29, 78, 216, 0.14);
+            transform: translateY(-1px);
+        }
+
+        .btn-login {
+            width: 100%;
+            min-height: 58px;
+            border: none;
+            border-radius: 18px;
+            margin-top: 10px;
+            font-size: 1rem;
+            font-weight: 800;
+            letter-spacing: 0.01em;
+            color: #08101d;
+            background: linear-gradient(135deg, #ffd978 0%, #f6c453 55%, #e8a917 100%);
+            box-shadow: 0 18px 26px rgba(232, 169, 23, 0.28);
+            cursor: pointer;
+            transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 22px 32px rgba(232, 169, 23, 0.34);
+            filter: saturate(1.05);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .alert {
+            margin-bottom: 18px;
+            padding: 14px 16px;
+            border-radius: 16px;
+            background: var(--danger-bg);
+            border: 1px solid var(--danger-border);
+            color: var(--danger-text);
+            font-size: 0.94rem;
+            line-height: 1.5;
+            animation: shake 0.35s ease;
+        }
+
+        .footer-text {
+            margin-top: 24px;
+            padding-top: 18px;
+            border-top: 1px solid rgba(20, 32, 51, 0.08);
+            color: var(--muted);
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .footer-text strong {
+            color: #23314a;
+        }
+
+        @keyframes entrance {
+            from {
+                opacity: 0;
+                transform: translateY(26px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            35% { transform: translateX(-4px); }
+            70% { transform: translateX(4px); }
+        }
+
+        @media (max-width: 960px) {
+            .login-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .brand-panel {
+                min-height: 320px;
+                padding: 40px 28px 30px;
+            }
+
+            .brand-bottom {
+                margin-top: 30px;
+            }
+
+            .login-container {
+                padding: 38px 28px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 14px;
+            }
+
+            .login-shell {
+                border-radius: 24px;
+            }
+
+            .brand-panel {
+                padding: 28px 20px 24px;
+            }
+
+            .brand-title {
+                font-size: 2.2rem;
+            }
+
+            .login-container {
+                padding: 28px 20px;
+            }
+
+            .footer-text {
+                flex-direction: column;
+                gap: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="login-shell">
+        <section class="brand-panel">
+            <div class="brand-top">
+                <div class="brand-badge">Prime Sneaker Admin</div>
+                <h2 class="brand-title">Painel com <span>controle</span> e estilo.</h2>
+                <p class="brand-copy">
+                    Gerencie produtos, cupons e opera&ccedil;&otilde;es da loja em uma &aacute;rea reservada, com visual mais elegante e foco total no que importa.
+                </p>
+
+                <div class="brand-feature-card">
+                    <div class="brand-feature-label">Ambiente interno</div>
+                    <h3>Um acesso reservado para organizar a opera&ccedil;&atilde;o da loja com mais clareza.</h3>
+                    <p>
+                        Este painel foi pensado para centralizar o gerenciamento administrativo da Prime Sneaker em uma entrada simples, elegante e f&aacute;cil de usar.
+                    </p>
+                </div>
+            </div>
+
+            <div class="brand-bottom">
+                <div>
+                    <strong>Prime Sneaker</strong><br />
+                    &Aacute;rea interna para administradores
+                </div>
+                <div>Seguran&ccedil;a e organiza&ccedil;&atilde;o em um &uacute;nico painel</div>
+            </div>
+        </section>
+
+        <section class="login-container">
+            <div class="login-panel-content">
+                <div class="brand-logo-wrap">
+                    <img src="images/Logo.png" alt="Prime Sneaker" />
+                </div>
+
+                <div class="admin-icon">PS</div>
+                <p class="eyebrow">Acesso restrito</p>
+                <h1>Login Admin</h1>
+                <p class="login-subtitle">Entre com suas credenciais para acessar a &aacute;rea administrativa da Prime Sneaker.</p>
+
+                <div id="alert-area"></div>
+
+                <form id="login-form" autocomplete="off">
+                    <div class="form-group">
+                        <label for="email">E-mail</label>
+                        <div class="input-wrap">
+                            <span>@</span>
+                            <input type="email" id="email" placeholder="email administrativo" required autocomplete="off" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Senha</label>
+                        <div class="input-wrap">
+                            <span>*</span>
+                            <input type="password" id="password" placeholder="Digite sua senha" required autocomplete="new-password" />
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-login">Entrar no painel</button>
+                </form>
+
+                <p class="footer-text">
+                    <span><strong>Acesso restrito:</strong> use somente credenciais cadastradas.</span>
+                    <span>Em caso de perda de acesso, contate o respons&aacute;vel t&eacute;cnico.</span>
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script src="js/notifications.js?v=2"></script>
+    <script>
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminUser');
+        localStorage.removeItem('adminAuth');
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const emailEl = document.getElementById('email');
+            const passEl = document.getElementById('password');
+
+            if (emailEl) emailEl.value = '';
+            if (passEl) passEl.value = '';
+
+            setTimeout(() => {
+                if (passEl) passEl.value = '';
+            }, 100);
+
+            setTimeout(() => {
+                if (passEl) passEl.value = '';
+            }, 500);
+
+            if (emailEl) emailEl.focus();
+        });
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const form = e.currentTarget;
+            const submitButton = form.querySelector('button[type="submit"]');
+            const originalText = submitButton ? submitButton.textContent : '';
+            const alertArea = document.getElementById('alert-area');
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            let shouldRestoreButton = true;
+
+            alertArea.innerHTML = '';
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = 'Entrando...';
+            }
+
+            try {
+                const resp = await API.login(email, password);
+
+                if (!resp.user.is_admin) {
+                    throw new Error('Essa conta nao tem permissao de admin');
+                }
+
+                sessionStorage.setItem('adminToken', resp.token);
+
+                const verifiedUser = await API.request('/admin/session', {
+                    headers: { Authorization: `Bearer ${resp.token}` },
+                });
+
+                if (!(verifiedUser && (verifiedUser.is_admin === true || verifiedUser.isAdmin === true))) {
+                    throw new Error('Essa conta nao tem permissao de admin');
+                }
+
+                sessionStorage.setItem('adminUser', JSON.stringify(verifiedUser));
+
+                shouldRestoreButton = false;
+                window.location.replace('adm.html');
+            } catch (err) {
+                alertArea.innerHTML = '';
+                const alert = document.createElement('div');
+                alert.className = 'alert';
+                alert.textContent = err.message;
+                alertArea.appendChild(alert);
+                Notifications.error(err.message);
+            } finally {
+                if (shouldRestoreButton && submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = originalText;
+                }
+            }
+        });
+    </script>
+</body>
+</html>

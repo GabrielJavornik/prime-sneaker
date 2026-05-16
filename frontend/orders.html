@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Meus Pedidos - Prime Sneaker</title>
+    <link rel="stylesheet" href="css/style.css?v=31" />
+    <style>
+        .orders-wrapper {
+            display: flex;
+            min-height: calc(100vh - 200px);
+        }
+
+        .orders-sidebar {
+            width: 250px;
+            background: #f9f9f9;
+            padding: 2rem 0;
+            border-right: 1px solid #e5e5e5;
+        }
+
+        .orders-sidebar h2 {
+            font-size: 0.9rem;
+            color: var(--muted);
+            padding: 0 1.5rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .orders-sidebar nav a {
+            display: block;
+            padding: 0.75rem 1.5rem;
+            color: var(--primary);
+            text-decoration: none;
+            border-left: 3px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .orders-sidebar nav a:hover,
+        .orders-sidebar nav a.active {
+            background: rgba(212, 175, 55, 0.1);
+            border-left-color: var(--accent);
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .orders-content {
+            flex: 1;
+            padding: 2rem;
+        }
+
+        .orders-header {
+            margin-bottom: 2rem;
+        }
+
+        .orders-header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .orders-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border: 1px solid #e5e5e5;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .orders-table thead {
+            background: #f9f9f9;
+            border-bottom: 2px solid #e5e5e5;
+        }
+
+        .orders-table th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .orders-table td {
+            padding: 1rem;
+            border-bottom: 1px solid #e5e5e5;
+        }
+
+        .orders-table tbody tr:hover {
+            background: #f9f9f9;
+        }
+
+        .orders-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .order-id {
+            color: #00bcd4;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .order-status {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .order-total {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .order-progress-row td {
+            padding-top: 0;
+            background: #fff;
+        }
+
+        .order-progress {
+            position: relative;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.75rem;
+            padding: 1.1rem 0 0.2rem;
+        }
+
+        .order-progress-track {
+            position: absolute;
+            top: 1.45rem;
+            left: 2rem;
+            right: 2rem;
+            height: 4px;
+            background: #e8e8e8;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .order-progress-fill {
+            display: block;
+            height: 100%;
+            width: 0;
+            background: linear-gradient(90deg, var(--accent), var(--success));
+            border-radius: inherit;
+            transition: width 0.3s ease;
+        }
+
+        .order-step {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.4rem;
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+
+        .order-step-dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #e8e8e8;
+            color: #777;
+            border: 3px solid #fff;
+            box-shadow: 0 0 0 1px #e8e8e8;
+            font-size: 0.8rem;
+        }
+
+        .order-step.done,
+        .order-step.active {
+            color: var(--primary);
+        }
+
+        .order-step.done .order-step-dot {
+            background: var(--success);
+            color: #fff;
+            box-shadow: 0 0 0 1px var(--success);
+        }
+
+        .order-step.active .order-step-dot {
+            background: var(--accent);
+            color: #111;
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.22);
+        }
+
+        .order-progress-cancelled {
+            padding: 0.9rem 1rem;
+            border-radius: 10px;
+            background: #fff3f1;
+            color: #b42318;
+            border: 1px solid #ffd5cf;
+            font-weight: 700;
+        }
+
+        .btn-visualizar {
+            background: #00bcd4;
+            color: white;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+
+        .btn-visualizar:hover {
+            background: #0097a7;
+        }
+
+        .pagination {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .pagination button {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #e5e5e5;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .pagination button:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .pagination button.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .empty-message {
+            text-align: center;
+            padding: 2rem;
+            color: var(--muted);
+        }
+
+        .empty-message p {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+        }
+
+        @media (max-width: 1024px) {
+            .orders-wrapper {
+                flex-direction: column;
+            }
+
+            .orders-sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #e5e5e5;
+                padding: 1rem 0;
+            }
+
+            .orders-sidebar h2 {
+                display: none;
+            }
+
+            .orders-sidebar nav {
+                display: flex;
+                overflow-x: auto;
+            }
+
+            .orders-sidebar nav a {
+                white-space: nowrap;
+                padding: 0.75rem 1rem;
+                border-left: none;
+                border-bottom: 3px solid transparent;
+            }
+
+            .orders-sidebar nav a.active {
+                border-left: none;
+                border-bottom-color: var(--accent);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .orders-table {
+                font-size: 0.85rem;
+            }
+
+            .orders-table th,
+            .orders-table td {
+                padding: 0.75rem;
+            }
+
+            .order-progress {
+                gap: 0.25rem;
+            }
+
+            .order-step {
+                font-size: 0.68rem;
+            }
+
+            .order-progress-track {
+                left: 1.2rem;
+                right: 1.2rem;
+            }
+
+            .btn-visualizar {
+                padding: 0.4rem 0.75rem;
+                font-size: 0.75rem;
+            }
+
+            .orders-content {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="header-placeholder"></div>
+
+    <main>
+        <div id="login-required" style="display: none;">
+            <div style="max-width: 900px; margin: 2rem auto; padding: 0 2rem;">
+                <div class="alert alert-warning">
+                    Você precisa estar logado para ver seus pedidos
+                </div>
+                <a href="login.html" class="btn-primary">Fazer Login</a>
+            </div>
+        </div>
+
+        <div id="orders-content-wrapper" style="display: none;">
+            <div class="orders-wrapper">
+                <!-- Sidebar -->
+                <div class="orders-sidebar">
+                    <h2>Minha Conta</h2>
+                    <nav id="sidebar-nav">
+                        <a href="profile.html">Painel</a>
+                        <a href="orders.html" class="active">Pedidos</a>
+                        <a href="profile.html?tab=enderecos">Endereços</a>
+                        <a href="profile.html?tab=detalhes">Detalhes da conta</a>
+                        <a href="wishlist.html">Lista de Desejos</a>
+                        <a href="javascript:void(0)" onclick="logout(); return false;">Sair</a>
+                    </nav>
+                </div>
+
+                <!-- Main Content -->
+                <div class="orders-content">
+                    <div class="orders-header">
+                        <h1>MEUS PEDIDOS</h1>
+                    </div>
+
+                    <div id="empty-state" style="display: none;">
+                        <div class="empty-message">
+                            <p>Você não tem nenhum pedido ainda</p>
+                            <a href="search.html" class="btn-primary">Continuar Comprando</a>
+                        </div>
+                    </div>
+
+                    <div id="orders-list">
+                        <table class="orders-table">
+                            <thead>
+                                <tr>
+                                    <th>PEDIDO</th>
+                                    <th>DATA</th>
+                                    <th>STATUS</th>
+                                    <th>TOTAL</th>
+                                    <th>AÇÕES</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orders-tbody">
+                                <tr>
+                                    <td colspan="5" style="text-align: center; color: var(--muted);">Carregando pedidos...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="pagination" class="pagination"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="footer-placeholder"></div>
+
+    <!-- Modal para detalhes do pedido -->
+    <div id="order-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto;">
+        <div style="background: white; max-width: 800px; margin: 2rem auto; border-radius: 8px; padding: 2rem; position: relative;">
+            <button onclick="closeOrderModal()" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+            <div id="modal-content"></div>
+        </div>
+    </div>
+
+    <script src="js/notifications.js?v=2"></script>
+    <script src="js/cart-storage.js"></script>
+    <script src="js/cart.js?v=5"></script>
+    <script src="js/wishlist.js"></script>
+    <script src="js/api.js?v=2"></script>
+    <script src="js/common.js?v=18"></script>
+    <script>
+        const user = getLoggedUser();
+        const loginRequired = document.getElementById('login-required');
+        const ordersWrapper = document.getElementById('orders-content-wrapper');
+
+        if (!user) {
+            loginRequired.style.display = 'block';
+            ordersWrapper.style.display = 'none';
+        } else {
+            loginRequired.style.display = 'none';
+            ordersWrapper.style.display = 'block';
+            loadOrders(1);
+        }
+
+        function getStatusLabel(status) {
+            const labels = {
+                'pendente': 'Aguardando Pagamento',
+                'processando': 'Processando',
+                'enviado': 'Enviado',
+                'entregue': 'Entregue',
+                'cancelado': 'Cancelado',
+                'aguardando_pagamento': 'Aguardando Pagamento'
+            };
+            return labels[status] || status;
+        }
+
+        function safePositiveInt(value) {
+            const number = Number(value);
+            return Number.isInteger(number) && number > 0 ? number : 0;
+        }
+
+        const ORDER_STEPS = [
+            { key: 'aguardando_pagamento', label: 'Pagamento' },
+            { key: 'processando', label: 'Preparando' },
+            { key: 'enviado', label: 'Enviado' },
+            { key: 'entregue', label: 'Entregue' },
+        ];
+
+        function getProgressIndex(status) {
+            if (status === 'pendente') return 0;
+            return ORDER_STEPS.findIndex(step => step.key === status);
+        }
+
+        function renderOrderProgress(status) {
+            if (status === 'cancelado') {
+                return '<div class="order-progress-cancelled">Pedido cancelado</div>';
+            }
+
+            const currentIndex = Math.max(getProgressIndex(status), 0);
+            const fillPercent = (currentIndex / (ORDER_STEPS.length - 1)) * 100;
+
+            return `
+                <div class="order-progress" aria-label="Progresso do pedido">
+                    <div class="order-progress-track">
+                        <span class="order-progress-fill" style="width: ${fillPercent}%"></span>
+                    </div>
+                    ${ORDER_STEPS.map((step, index) => {
+                        const state = index < currentIndex ? 'done' : index === currentIndex ? 'active' : '';
+                        const mark = index < currentIndex ? 'OK' : index + 1;
+                        return `
+                            <div class="order-step ${state}">
+                                <span class="order-step-dot">${mark}</span>
+                                <span>${step.label}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function formatBRL(value) {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(Number(value) || 0);
+        }
+
+        async function loadOrders(page = 1) {
+            try {
+                const token = sessionStorage.getItem('token');
+                const response = await fetch(`/api/orders/my-orders?page=${page}&limit=10`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+
+                if (!response.ok) throw new Error('Erro ao carregar pedidos');
+
+                const data = await response.json();
+
+                if (!data.items || data.items.length === 0) {
+                    document.getElementById('orders-list').style.display = 'none';
+                    document.getElementById('empty-state').style.display = 'block';
+                    document.getElementById('pagination').innerHTML = '';
+                    return;
+                }
+
+                document.getElementById('orders-list').style.display = 'block';
+                document.getElementById('empty-state').style.display = 'none';
+
+                // Fetch full order details for each order to get items count
+                const ordersWithItems = await Promise.all(data.items.map(async (order) => {
+                    try {
+                        const orderId = safePositiveInt(order.id);
+                        const detailResponse = await fetch(`/api/orders/${orderId}`, {
+                            headers: { 'Authorization': `Bearer ${token}` },
+                        });
+                        if (detailResponse.ok) {
+                            const fullOrder = await detailResponse.json();
+                            return { ...order, items: fullOrder.items };
+                        }
+                        return order;
+                    } catch (err) {
+                        return order;
+                    }
+                }));
+
+                const tbody = document.getElementById('orders-tbody');
+                tbody.innerHTML = ordersWithItems.map(order => {
+                    const itemCount = order.items ? order.items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0) : 0;
+                    const orderId = safePositiveInt(order.id);
+                    return `
+                    <tr>
+                        <td class="order-id">#${orderId}</td>
+                        <td>${new Date(order.created_at).toLocaleDateString('pt-BR')}</td>
+                        <td class="order-status">${escapeHTML(getStatusLabel(order.status))}</td>
+                        <td class="order-total">${formatBRL(order.total)} de ${itemCount} items</td>
+                        <td>
+                            <button class="btn-visualizar" onclick="viewOrderDetails(${orderId})">Visualizar</button>
+                        </td>
+                    </tr>
+                    <tr class="order-progress-row">
+                        <td colspan="5">${renderOrderProgress(order.status)}</td>
+                    </tr>
+                `;
+                }).join('');
+
+                // Paginação
+                if (data.pagination.totalPages > 1) {
+                    let paginationHtml = '';
+                    for (let i = 1; i <= data.pagination.totalPages; i++) {
+                        paginationHtml += `
+                            <button
+                                onclick="loadOrders(${i})"
+                                ${i === page ? 'class="active"' : ''}
+                            >
+                                ${i}
+                            </button>
+                        `;
+                    }
+                    document.getElementById('pagination').innerHTML = paginationHtml;
+                } else {
+                    document.getElementById('pagination').innerHTML = '';
+                }
+            } catch (err) {
+                Notifications.error('Erro ao carregar pedidos: ' + err.message);
+            }
+        }
+
+        async function viewOrderDetails(orderId) {
+            try {
+                const token = sessionStorage.getItem('token');
+                const response = await fetch(`/api/orders/${orderId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+
+                if (!response.ok) throw new Error('Erro ao carregar detalhes');
+
+                const order = await response.json();
+
+                let statusSteps = '';
+                if (order.status === 'cancelado') {
+                    statusSteps = `
+                        <div style="padding: 1rem; background: #fff3cd; border-radius: 4px; color: #856404; margin-bottom: 1rem;">
+                            Pedido Cancelado
+                        </div>
+                    `;
+                } else {
+                    const statuses = ['aguardando_pagamento', 'processando', 'enviado', 'entregue'];
+                    const currentIndex = statuses.indexOf(order.status);
+                    statusSteps = statuses.map((status, index) => {
+                        const isCompleted = index < currentIndex;
+                        const isActive = index === currentIndex;
+                        return `
+                            <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+                                <div style="width: 30px; height: 30px; border-radius: 50%; background: ${isCompleted ? 'var(--success)' : isActive ? 'var(--accent)' : '#e5e5e5'}; color: white; display: flex; align-items: center; justify-content: center; margin-right: 1rem; font-weight: bold;">
+                                    ${isCompleted ? '?' : isActive ? '?' : index + 1}
+                                </div>
+                                <div>
+                                    <strong>${status.charAt(0).toUpperCase() + status.slice(1)}</strong>
+                                    ${isActive ? '<p style="margin: 0; color: var(--muted); font-size: 0.85rem;">Em andamento</p>' : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                statusSteps = renderOrderProgress(order.status);
+
+                const itemsHtml = (order.items || []).map(item => {
+                    const unitPrice = item.price || (item.line_total / (item.quantity || 1));
+                    return `
+                    <tr>
+                        <td>${escapeHTML(item.product_name || 'Produto')}</td>
+                        <td>${escapeHTML(item.quantity || 0)}</td>
+                        <td>${formatBRL(unitPrice)}</td>
+                        <td>${formatBRL(item.line_total)}</td>
+                    </tr>
+                `;
+                }).join('');
+
+                const orderId = safePositiveInt(order.id);
+
+                document.getElementById('modal-content').innerHTML = `
+                    <h2>Pedido #${orderId}</h2>
+                    <p style="color: var(--muted); margin-bottom: 1.5rem;">Data: ${new Date(order.created_at).toLocaleDateString('pt-BR')} às ${new Date(order.created_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}</p>
+
+                    <h3 style="margin-top: 2rem; margin-bottom: 1rem;">Status do Pedido</h3>
+                    ${statusSteps}
+
+                    <h3 style="margin-top: 2rem; margin-bottom: 1rem;">Itens do Pedido</h3>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 1rem;">
+                        <thead>
+                            <tr style="background: #f9f9f9; border-bottom: 2px solid #e5e5e5;">
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Produto</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Quantidade</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Preço Unitário</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itemsHtml}
+                        </tbody>
+                    </table>
+
+                    ${order.coupon_code ? `
+                        <div style="padding: 0.75rem; background: #e8f5e9; border: 1px solid #4caf50; border-radius: 4px; margin-bottom: 1rem; color: #2e7d32;">
+                            Cupom aplicado: ${escapeHTML(order.coupon_code)}
+                        </div>
+                    ` : ''}
+
+                    <div style="text-align: right; padding-top: 1rem; border-top: 2px solid #e5e5e5;">
+                        <h3 style="margin-bottom: 0.5rem;">Total: ${formatBRL(order.total)}</h3>
+                    </div>
+                `;
+
+                document.getElementById('order-modal').style.display = 'block';
+            } catch (err) {
+                Notifications.error('Erro: ' + err.message);
+            }
+        }
+
+        function closeOrderModal() {
+            document.getElementById('order-modal').style.display = 'none';
+        }
+
+        document.getElementById('order-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'order-modal') {
+                closeOrderModal();
+            }
+        });
+    </script>
+</body>
+</html>

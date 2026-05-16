@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prime Sneaker - Os melhores t&ecirc;nis do mercado</title>
+    <link rel="stylesheet" href="css/style.css?v=31" />
+</head>
+<body>
+    <div id="header-placeholder"></div>
+
+    <main>
+        <!-- Banner principal -->
+        <section class="banner">
+            <div class="banner-copy">
+                <span class="banner-kicker">Sneakers selecionados</span>
+                <h1>Prime Sneaker - Sua Jornada Come&ccedil;a pelos P&eacute;s</h1>
+                <p>Curadoria premium, lan&ccedil;amentos e ofertas em um cat&aacute;logo feito para comprar sem enrola&ccedil;&atilde;o.</p>
+                <div class="banner-actions">
+                    <a href="search.html?launch=1" class="btn-cta">Ver Lan&ccedil;amentos</a>
+                    <a href="search.html?outlet=1" class="btn-cta btn-cta-outline">Ver Outlet</a>
+                </div>
+            </div>
+            <div class="banner-proof" aria-label="Diferenciais da Prime Sneaker">
+                <div class="banner-proof-card">
+                    <span>01</span>
+                    <div>
+                        <strong>Drops e Lan&ccedil;amentos</strong>
+                        <small>Os modelos mais quentes e cobi&ccedil;ados do momento, separados para voc&ecirc;.</small>
+                    </div>
+                </div>
+                <div class="banner-proof-card">
+                    <span>02</span>
+                    <div>
+                        <strong>Outlet</strong>
+                        <small>Garantimos o melhor pre&ccedil;o.</small>
+                    </div>
+                </div>
+                <div class="banner-proof-card">
+                    <span>03</span>
+                    <div>
+                        <strong>Compra Direta e segura</strong>
+                        <small>Pagamento via Pix com aprova&ccedil;&atilde;o imediata e segura.</small>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Destaques (4 produtos) -->
+        <h2 class="section-title">Produtos em Destaque</h2>
+        <div class="product-grid" id="top-products">
+            <div class="loading">Carregando produtos...</div>
+        </div>
+
+        <!-- Categorias rapidas -->
+        <section style="margin-top: 5rem;">
+            <h2 class="section-title">Categorias Populares</h2>
+            <div class="categories-grid">
+                <a href="search.html?categoria=esportivo" class="category-card category-card-sport">
+                    <div class="category-info">
+                        <h3 class="category-name">Esportivo</h3>
+                        <p class="category-desc">Performance e velocidade</p>
+                    </div>
+                </a>
+                <a href="search.html?categoria=casual" class="category-card category-card-casual">
+                    <div class="category-info">
+                        <h3 class="category-name">Casual</h3>
+                        <p class="category-desc">Estilo do dia a dia</p>
+                    </div>
+                </a>
+                <a href="search.html?categoria=formal" class="category-card category-card-formal">
+                    <div class="category-info">
+                        <h3 class="category-name">Formal</h3>
+                        <p class="category-desc">Visual refinado</p>
+                    </div>
+                </a>
+                <a href="search.html?categoria=trekking" class="category-card category-card-trekking">
+                    <div class="category-info">
+                        <h3 class="category-name">Trekking</h3>
+                        <p class="category-desc">Aventura e resistencia</p>
+                    </div>
+                </a>
+            </div>
+        </section>
+
+        <!-- Newsletter -->
+        <section class="newsletter" style="margin-top: 5rem;">
+            <div class="newsletter-content">
+                <h2>Fique por dentro das Novidades</h2>
+                <p>Receba as melhores ofertas e lan&ccedil;amentos direto no seu e-mail</p>
+                <form class="newsletter-form" id="newsletter-form" onsubmit="inscreverNewsletter(event)">
+                    <input type="email" id="newsletter-email" placeholder="Seu melhor e-mail..." required />
+                    <button type="submit" id="newsletter-btn">Inscrever</button>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <div id="footer-placeholder"></div>
+
+    <script src="js/notifications.js?v=2"></script>
+    <script src="js/cart-storage.js"></script>
+    <script src="js/cart.js?v=5"></script>
+    <script src="js/wishlist.js?v=2"></script>
+    <script src="js/api.js?v=3"></script>
+    <script src="js/common.js?v=18"></script>
+    <script src="js/home.js?v=7"></script>
+    <script>
+        async function inscreverNewsletter(e) {
+            e.preventDefault();
+            const input = document.getElementById('newsletter-email');
+            const btn = document.getElementById('newsletter-btn');
+            const email = input.value.trim();
+            if (!email) return;
+
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Enviando...';
+
+            try {
+                const res = await fetch('/api/newsletter', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Erro ao se inscrever');
+
+                Notifications.success('Inscri\u00e7\u00e3o realizada! Verifique seu e-mail.');
+                input.value = '';
+            } catch (err) {
+                Notifications.error(err.message || 'Erro ao se inscrever');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+    </script>
+</body>
+</html>

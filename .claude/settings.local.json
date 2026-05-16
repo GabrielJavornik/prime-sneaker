@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(node -c src/app.js)",
+      "Bash(node -c src/routes/addressRoutes.js)",
+      "Bash(node -c src/controllers/addressController.js)",
+      "Bash(node -c src/models/addressModel.js)",
+      "Bash(taskkill /IM node.exe /F)",
+      "Bash(powershell -Command \"Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force\")",
+      "WebSearch",
+      "WebFetch(domain:icons.getbootstrap.com)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill /PID 1192 /F)",
+      "Bash(taskkill.exe /F /PID 1192)",
+      "Bash(awk '{print $NF}')",
+      "Bash(kill -9 1192)",
+      "Bash(node server.js)",
+      "Bash(curl http://localhost:3000)",
+      "Bash(xargs grep *)",
+      "Bash(ls \"c:\\\\Users\\\\gabri\\\\Desktop\\\\Site Trabalho Final\\\\backend\\\\src\\\\routes\\\\\\\\\")",
+      "Bash(ls \"c:\\\\Users\\\\gabri\\\\Desktop\\\\Site Trabalho Final\\\\backend\\\\src\\\\services\\\\\\\\\")"
+    ]
+  }
+}
