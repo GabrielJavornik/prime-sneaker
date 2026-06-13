@@ -38,7 +38,7 @@
             document.documentElement.classList.remove('admin-redirecting');
         })();
     </script>
-    <link rel="stylesheet" href="css/style.css?v=31" />
+    <link rel="stylesheet" href="css/style.css?v=32" />
     <style>
         :root {
             --bg-dark: #09111f;
@@ -396,6 +396,64 @@
             transform: translateY(0);
         }
 
+        .admin-recovery-link {
+            display: inline-flex;
+            margin-top: 14px;
+            color: #1D4ED8;
+            font-weight: 800;
+            text-decoration: none;
+            border-bottom: 1px solid rgba(29, 78, 216, 0.25);
+        }
+
+        .admin-recovery-link:hover {
+            color: #0F172A;
+            border-bottom-color: #D6B23E;
+        }
+
+        .admin-recovery-form {
+            display: none;
+            margin-top: 18px;
+            padding: 20px;
+            border-radius: 22px;
+            background: rgba(15, 23, 42, 0.04);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+        }
+
+        .admin-recovery-form.is-visible {
+            display: block;
+        }
+
+        .admin-recovery-title {
+            font-size: 1.05rem;
+            font-weight: 900;
+            color: #0F172A;
+            margin-bottom: 6px;
+        }
+
+        .admin-recovery-copy {
+            color: var(--muted);
+            line-height: 1.55;
+            margin-bottom: 16px;
+        }
+
+        .admin-recovery-actions {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn-admin-secondary {
+            min-height: 50px;
+            padding: 0 18px;
+            border-radius: 16px;
+            border: 1px solid #CBD5E1;
+            background: #ffffff;
+            color: #0F172A;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
         .alert {
             margin-bottom: 18px;
             padding: 14px 16px;
@@ -422,6 +480,17 @@
 
         .footer-text strong {
             color: #23314a;
+        }
+
+        .admin-recovery-status {
+            margin-top: 18px;
+            padding: 14px 16px;
+            border-radius: 16px;
+            background: rgba(21, 128, 61, 0.1);
+            border: 1px solid rgba(21, 128, 61, 0.18);
+            color: #15803D;
+            font-weight: 800;
+            line-height: 1.45;
         }
 
         @keyframes entrance {
@@ -549,16 +618,32 @@
                     <button type="submit" class="btn-login">Entrar no painel</button>
                 </form>
 
-                <p class="footer-text">
-                    <span><strong>Acesso restrito:</strong> use somente credenciais cadastradas.</span>
-                    <span>Em caso de perda de acesso, contate o respons&aacute;vel t&eacute;cnico.</span>
-                </p>
+                <a href="#" class="admin-recovery-link" id="show-admin-recovery">Esqueci minha senha de administrador</a>
+
+                <form id="admin-recovery-form" class="admin-recovery-form" autocomplete="off">
+                    <div class="admin-recovery-title">Recuperar acesso admin</div>
+                    <p class="admin-recovery-copy">
+                        Informe o e-mail cadastrado como admin ou superadmin. Se ele existir, enviaremos um link para redefinir a senha.
+                    </p>
+                    <div class="form-group">
+                        <label for="recovery-email">E-mail administrativo</label>
+                        <div class="input-wrap">
+                            <span>@</span>
+                            <input type="email" id="recovery-email" placeholder="admin@email.com" required autocomplete="off" />
+                        </div>
+                    </div>
+                    <div class="admin-recovery-actions">
+                        <button type="submit" class="btn-login">Enviar link</button>
+                        <button type="button" class="btn-admin-secondary" id="hide-admin-recovery">Cancelar</button>
+                    </div>
+                </form>
+
+                <p id="admin-recovery-status" class="admin-recovery-status" style="display: none;"></p>
             </div>
         </section>
     </main>
 
     <script src="js/api.js"></script>
-    <script src="js/notifications.js?v=2"></script>
     <script>
         localStorage.removeItem('adminToken');
         localStorage.removeItem('adminUser');
@@ -626,9 +711,71 @@
                 alert.className = 'alert';
                 alert.textContent = err.message;
                 alertArea.appendChild(alert);
-                Notifications.error(err.message);
+                alert.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             } finally {
                 if (shouldRestoreButton && submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = originalText;
+                }
+            }
+        });
+
+        const recoveryLink = document.getElementById('show-admin-recovery');
+        const recoveryForm = document.getElementById('admin-recovery-form');
+        const hideRecovery = document.getElementById('hide-admin-recovery');
+
+        recoveryLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            recoveryForm.classList.add('is-visible');
+            const statusArea = document.getElementById('admin-recovery-status');
+            statusArea.style.display = 'none';
+            statusArea.textContent = '';
+            const email = document.getElementById('email').value.trim();
+            const recoveryEmail = document.getElementById('recovery-email');
+            if (email && !recoveryEmail.value) recoveryEmail.value = email;
+            recoveryEmail.focus();
+        });
+
+        hideRecovery.addEventListener('click', () => {
+            recoveryForm.classList.remove('is-visible');
+        });
+
+        recoveryForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const submitButton = recoveryForm.querySelector('button[type="submit"]');
+            const originalText = submitButton ? submitButton.textContent : '';
+            const alertArea = document.getElementById('alert-area');
+            const statusArea = document.getElementById('admin-recovery-status');
+            const email = document.getElementById('recovery-email').value.trim();
+
+            alertArea.innerHTML = '';
+            statusArea.style.display = 'none';
+            statusArea.textContent = '';
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = 'Enviando...';
+            }
+
+            try {
+                const response = await fetch('/api/admin/forgot-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email }),
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(data.error || 'Nao foi possivel enviar o link');
+
+                statusArea.textContent = 'Verifique seu Email foi enviado um link de recuperação.';
+                statusArea.style.display = 'block';
+                recoveryForm.classList.remove('is-visible');
+            } catch (err) {
+                const alert = document.createElement('div');
+                alert.className = 'alert';
+                alert.textContent = err.message;
+                alertArea.appendChild(alert);
+            } finally {
+                if (submitButton) {
                     submitButton.disabled = false;
                     submitButton.textContent = originalText;
                 }

@@ -11,6 +11,30 @@
     } catch (_) {}
 })();
 
+(function startPagesAtTop() {
+    function shouldKeepAnchorPosition() {
+        return Boolean(window.location.hash);
+    }
+
+    function forceTop() {
+        if (shouldKeepAnchorPosition()) return;
+        window.scrollTo(0, 0);
+        if (document.documentElement) document.documentElement.scrollTop = 0;
+        if (document.body) document.body.scrollTop = 0;
+    }
+
+    try {
+        if ('scrollRestoration' in window.history) {
+            window.history.scrollRestoration = 'manual';
+        }
+    } catch (_) {}
+
+    forceTop();
+    window.addEventListener('pageshow', () => requestAnimationFrame(forceTop));
+    document.addEventListener('DOMContentLoaded', () => requestAnimationFrame(forceTop));
+    window.addEventListener('load', () => setTimeout(forceTop, 0));
+})();
+
 function escapeHTML(value) {
     return String(value ?? '').replace(/[&<>"']/g, char => ({
         '&': '&amp;',
@@ -217,7 +241,7 @@ function renderHeader(activePage) {
         </form>
         <nav class="main-nav">
           ${authLinks}
-          <a href="cart.html" class="cart-link" aria-label="Abrir carrinho">
+          <a href="/carrinho" class="cart-link" aria-label="Abrir carrinho">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/></svg>
             <span class="cart-badge">0</span>
           </a>
@@ -226,103 +250,103 @@ function renderHeader(activePage) {
       <nav class="store-mega-nav" aria-label="Menu da loja">
         <div class="mega-shell">
           <div class="mega-item">
-            <a class="mega-trigger" href="search.html?launch=1">Lan&ccedil;amentos</a>
+            <a class="mega-trigger" href="/busca?launch=1">Lan&ccedil;amentos</a>
             <div class="mega-panel mega-panel-feature">
               <div class="mega-feature-card">
                 <span class="mega-kicker">Novidades</span>
                 <h3>Drops</h3>
                 <p>Confira em primeira m&atilde;o os modelos que acabaram de entrar no nosso cat&aacute;logo.</p>
-                <a class="mega-cta" href="search.html?launch=1">Ver lan&ccedil;amentos</a>
+                <a class="mega-cta" href="/busca?launch=1">Ver lan&ccedil;amentos</a>
               </div>
               <div class="mega-column">
                 <h4>Marcas com novidades</h4>
                 <div class="mega-link-list" id="mega-launch-brands">
-                  <a href="search.html?launch=1">Todos os lan&ccedil;amentos</a>
+                  <a href="/busca?launch=1">Todos os lan&ccedil;amentos</a>
                 </div>
               </div>
               <div class="mega-column">
                 <h4>Comprar por p&uacute;blico</h4>
-                <a href="search.html?launch=1&gender=masculino">Masculino</a>
-                <a href="search.html?launch=1&gender=feminino">Feminino</a>
-                <a href="search.html?launch=1&gender=infantil">Infantil</a>
+                <a href="/busca?launch=1&gender=masculino">Masculino</a>
+                <a href="/busca?launch=1&gender=feminino">Feminino</a>
+                <a href="/busca?launch=1&gender=infantil">Infantil</a>
               </div>
             </div>
           </div>
           <div class="mega-item">
-            <a class="mega-trigger" href="search.html">T&ecirc;nis</a>
+            <a class="mega-trigger" href="/busca">T&ecirc;nis</a>
             <div class="mega-panel mega-panel-shop">
               <div class="mega-column">
                 <h4>Masculino</h4>
                 <div id="mega-men-brands">
-                  <a href="search.html?gender=masculino">Todos em masculino</a>
+                  <a href="/busca?gender=masculino">Todos em masculino</a>
                 </div>
               </div>
               <div class="mega-column">
                 <h4>Feminino</h4>
                 <div id="mega-women-brands">
-                  <a href="search.html?gender=feminino">Todos em feminino</a>
+                  <a href="/busca?gender=feminino">Todos em feminino</a>
                 </div>
               </div>
               <div class="mega-column">
                 <h4>Infantil</h4>
                 <div id="mega-kids-brands">
-                  <a href="search.html?gender=infantil">Todos em infantil</a>
+                  <a href="/busca?gender=infantil">Todos em infantil</a>
                 </div>
               </div>
               <div class="mega-column mega-size-column">
                 <h4>Tamanho de t&ecirc;nis</h4>
-                <div class="mega-size-grid">
-                  ${['34','35','36','37','38','39','40','41','42','43','44','45'].map(size => `<a href="search.html?tamanho=${size}">${size}</a>`).join('')}
+                <div class="mega-size-grid" id="mega-size-grid">
+                  <span class="mega-empty-link">Carregando tamanhos...</span>
                 </div>
               </div>
             </div>
           </div>
           <div class="mega-item">
-            <a class="mega-trigger" href="search.html">Marca</a>
+            <a class="mega-trigger" href="/busca">Marca</a>
             <div class="mega-panel mega-panel-brands">
               <div class="mega-feature-card mega-feature-card-light">
                 <span class="mega-kicker">Marcas</span>
                 <h3>As melhores marcas</h3>
                 <p>Descubra nossa sele&ccedil;&atilde;o premium das marcas mais ic&ocirc;nicas e desejadas do mercado.</p>
-                <a class="mega-cta" href="search.html">Ver cat&aacute;logo</a>
+                <a class="mega-cta" href="/busca">Ver cat&aacute;logo</a>
               </div>
               <div class="mega-column">
                 <h4>Marcas dispon&iacute;veis</h4>
                 <div class="mega-link-list" id="mega-brand-list">
-                  <a href="search.html">Todas as marcas</a>
+                  <a href="/busca">Todas as marcas</a>
                 </div>
               </div>
               <div class="mega-column">
                 <h4>Destaques</h4>
                 <div id="mega-brand-launches">
-                  <a href="search.html?launch=1">Marcas com lan&ccedil;amento</a>
+                  <a href="/busca?launch=1">Marcas com lan&ccedil;amento</a>
                 </div>
                 <div id="mega-brand-outlet" class="mega-mini-group">
-                  <a href="search.html?outlet=1">Marcas no outlet</a>
+                  <a href="/busca?outlet=1">Marcas no outlet</a>
                 </div>
               </div>
             </div>
           </div>
           <div class="mega-item">
-            <a class="mega-trigger is-outlet" href="search.html?outlet=1">Outlet</a>
+            <a class="mega-trigger is-outlet" href="/busca?outlet=1">Outlet</a>
             <div class="mega-panel mega-panel-feature">
               <div class="mega-feature-card mega-feature-card-outlet">
                 <span class="mega-kicker">Outlet</span>
                 <h3>Outlet</h3>
                 <p>&Uacute;ltimos pares e oportunidades &uacute;nicas com pre&ccedil;os que n&atilde;o v&atilde;o durar muito tempo.</p>
-                <a class="mega-cta" href="search.html?outlet=1">Ver outlet</a>
+                <a class="mega-cta" href="/busca?outlet=1">Ver outlet</a>
               </div>
               <div class="mega-column">
                 <h4>Ofertas por marca</h4>
                 <div class="mega-link-list" id="mega-outlet-brands">
-                  <a href="search.html?outlet=1">Todos no outlet</a>
+                  <a href="/busca?outlet=1">Todos no outlet</a>
                 </div>
               </div>
               <div class="mega-column">
                 <h4>Filtrar outlet</h4>
-                <a href="search.html?outlet=1&gender=masculino">Masculino</a>
-                <a href="search.html?outlet=1&gender=feminino">Feminino</a>
-                <a href="search.html?outlet=1&gender=infantil">Infantil</a>
+                <a href="/busca?outlet=1&gender=masculino">Masculino</a>
+                <a href="/busca?outlet=1&gender=feminino">Feminino</a>
+                <a href="/busca?outlet=1&gender=infantil">Infantil</a>
               </div>
             </div>
           </div>
@@ -343,8 +367,8 @@ function uniqueSorted(values) {
 }
 
 const FALLBACK_MENU_BRANDS = ['Nike', 'Jordan', 'Adidas', 'New Balance', 'Vans', 'Puma', 'ASICS', 'Mizuno'];
-const MEGA_MENU_FACETS_CACHE_KEY = 'primeSneaker:megaMenuFacets:v1';
-const MEGA_MENU_FACETS_CACHE_MS = 5 * 60 * 1000;
+const MEGA_MENU_FACETS_CACHE_KEY = 'primeSneaker:megaMenuFacets:v4';
+const MEGA_MENU_FACETS_CACHE_MS = 0;
 
 function isTruthyMenuFlag(value) {
     return value === true || value === 'true' || value === '1' || value === 1 || value === 't' || value === 'yes';
@@ -398,6 +422,52 @@ function renderProductPrice(product, options = {}) {
     `;
 }
 
+function getProductReviewStats(product) {
+    const average = Number(product?.average_rating ?? product?.averageRating ?? 0);
+    const total = Number(product?.total_reviews ?? product?.totalReviews ?? 0);
+
+    return {
+        averageRating: Number.isFinite(average) ? Math.max(0, Math.min(5, average)) : 0,
+        totalReviews: Number.isFinite(total) ? Math.max(0, Math.trunc(total)) : 0,
+    };
+}
+
+function renderProductRatingStars(averageRating) {
+    const rating = Math.max(0, Math.min(5, Math.round(Number(averageRating) || 0)));
+    return `${'&#9733;'.repeat(rating)}${'&#9734;'.repeat(5 - rating)}`;
+}
+
+function renderProductReviewSummary(product) {
+    const { averageRating, totalReviews } = getProductReviewStats(product);
+    const reviewLabel = totalReviews === 1 ? 'avalia\u00e7\u00e3o' : 'avalia\u00e7\u00f5es';
+    const averageLabel = totalReviews > 0 ? `${averageRating.toFixed(1)} - ` : '';
+    const accessibleLabel = `${averageRating.toFixed(1)} de 5 em ${totalReviews} ${reviewLabel}`;
+
+    return `
+        <div class="rating" aria-label="${escapeAttribute(accessibleLabel)}">
+            <span aria-hidden="true">${renderProductRatingStars(averageRating)}</span>
+            <span>${averageLabel}${totalReviews} ${reviewLabel}</span>
+        </div>
+    `;
+}
+
+function slugifyProductName(value) {
+    const slug = String(value || 'produto')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    return slug || 'produto';
+}
+
+function buildProductUrl(productOrId, fallbackName = 'produto') {
+    const product = typeof productOrId === 'object' && productOrId !== null ? productOrId : null;
+    const id = product ? product.id : productOrId;
+    const slug = slugifyProductName(product ? product.name : fallbackName);
+    return `/p/${slug}/${encodeURIComponent(id)}`;
+}
+
 function buildSearchUrl(params = {}) {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
@@ -405,7 +475,7 @@ function buildSearchUrl(params = {}) {
             qs.set(key, value);
         }
     });
-    return `search.html${qs.toString() ? `?${qs.toString()}` : ''}`;
+    return `/busca${qs.toString() ? `?${qs.toString()}` : ''}`;
 }
 
 function renderMegaBrandLinks(containerId, brands, params = {}, allLabel = '', options = {}) {
@@ -413,7 +483,10 @@ function renderMegaBrandLinks(containerId, brands, params = {}, allLabel = '', o
     if (!container) return;
 
     const { allowFallback = true, emptyLabel = 'Nenhuma marca cadastrada ainda' } = options;
-    const list = brands.length ? brands : (allowFallback ? FALLBACK_MENU_BRANDS : []);
+    const normalizedBrands = Array.isArray(brands)
+        ? uniqueSorted(brands.map(brand => String(brand || '').trim()))
+        : [];
+    const list = normalizedBrands.length ? normalizedBrands : (allowFallback ? FALLBACK_MENU_BRANDS : []);
     const allLink = allLabel
         ? `<a class="mega-all-link" href="${buildSearchUrl(params)}">${escapeHTML(allLabel)}</a>`
         : '';
@@ -428,16 +501,52 @@ function renderMegaBrandLinks(containerId, brands, params = {}, allLabel = '', o
     ).join('');
 }
 
+function normalizeMenuSizes(sizes) {
+    return [...new Set((Array.isArray(sizes) ? sizes : [])
+        .map(size => String(size || '').trim())
+        .filter(Boolean))]
+        .sort((a, b) => {
+            const numericA = Number(a.replace(',', '.'));
+            const numericB = Number(b.replace(',', '.'));
+            if (Number.isFinite(numericA) && Number.isFinite(numericB)) {
+                return numericA - numericB;
+            }
+            return a.localeCompare(b, 'pt-BR', { numeric: true });
+        });
+}
+
+function renderMegaSizeLinks(sizes = []) {
+    const container = document.getElementById('mega-size-grid');
+    if (!container) return;
+
+    const list = normalizeMenuSizes(sizes);
+    if (!list.length) {
+        container.innerHTML = '<span class="mega-empty-link">Nenhum tamanho cadastrado</span>';
+        return;
+    }
+
+    container.innerHTML = list.map(size =>
+        `<a href="${buildSearchUrl({ tamanho: size })}">${escapeHTML(size)}</a>`
+    ).join('');
+}
+
 function brandsByGender(products, gender) {
     return uniqueSorted(products
         .filter(product => {
             const productGender = String(product.gender || 'unissex').toLowerCase();
-            return productGender === gender || productGender === 'unissex';
+            return productGender === gender || (gender !== 'infantil' && productGender === 'unissex');
         })
         .map(normalizeMenuBrand));
 }
 
 function readCachedMegaMenuFacets() {
+    if (MEGA_MENU_FACETS_CACHE_MS <= 0) {
+        try {
+            sessionStorage.removeItem(MEGA_MENU_FACETS_CACHE_KEY);
+        } catch (_) {}
+        return null;
+    }
+
     try {
         const raw = sessionStorage.getItem(MEGA_MENU_FACETS_CACHE_KEY);
         if (!raw) return null;
@@ -455,6 +564,8 @@ function readCachedMegaMenuFacets() {
 }
 
 function writeCachedMegaMenuFacets(data) {
+    if (MEGA_MENU_FACETS_CACHE_MS <= 0) return;
+
     try {
         sessionStorage.setItem(MEGA_MENU_FACETS_CACHE_KEY, JSON.stringify({
             expiresAt: Date.now() + MEGA_MENU_FACETS_CACHE_MS,
@@ -469,7 +580,7 @@ async function getMegaMenuFacets() {
 
     const facets = typeof API !== 'undefined' && API.getProductFacets
         ? await API.getProductFacets()
-        : await fetch('/api/products/facets').then(response => {
+        : await fetch(`/api/products/facets?refresh=1&ts=${Date.now()}`).then(response => {
             if (!response.ok) throw new Error('N\u00e3o foi poss\u00edvel carregar o menu');
             return response.json();
         });
@@ -487,10 +598,12 @@ async function hydrateMegaMenu() {
         const launchBrands = Array.isArray(facets.launchBrands) ? facets.launchBrands : [];
         const outletBrands = Array.isArray(facets.outletBrands) ? facets.outletBrands : [];
         const byGender = facets.byGender || {};
+        const sizes = Array.isArray(facets.sizes) ? facets.sizes : [];
 
         renderMegaBrandLinks('mega-men-brands', Array.isArray(byGender.masculino) ? byGender.masculino : [], { gender: 'masculino' }, 'Todos em masculino');
         renderMegaBrandLinks('mega-women-brands', Array.isArray(byGender.feminino) ? byGender.feminino : [], { gender: 'feminino' }, 'Todos em feminino');
         renderMegaBrandLinks('mega-kids-brands', Array.isArray(byGender.infantil) ? byGender.infantil : [], { gender: 'infantil' }, 'Todos em infantil');
+        renderMegaSizeLinks(sizes);
         renderMegaBrandLinks('mega-brand-list', brands, {}, 'Todas as marcas');
         renderMegaBrandLinks('mega-launch-brands', launchBrands, { launch: '1' }, 'Todos os lan\u00e7amentos', {
             allowFallback: false,
@@ -512,6 +625,7 @@ async function hydrateMegaMenu() {
         renderMegaBrandLinks('mega-men-brands', [], { gender: 'masculino' }, 'Todos em masculino');
         renderMegaBrandLinks('mega-women-brands', [], { gender: 'feminino' }, 'Todos em feminino');
         renderMegaBrandLinks('mega-kids-brands', [], { gender: 'infantil' }, 'Todos em infantil');
+        renderMegaSizeLinks([]);
         renderMegaBrandLinks('mega-brand-list', [], {}, 'Todas as marcas');
         renderMegaBrandLinks('mega-launch-brands', [], { launch: '1' }, 'Todos os lan\u00e7amentos', {
             allowFallback: false,
@@ -540,7 +654,7 @@ function renderFooter() {
           <h3>Sobre Nós</h3>
           <ul>
             <li><a href="nossa-historia.html">Nossa História</a></li>
-            <li><a href="search.html">Loja Online</a></li>
+            <li><a href="/busca">Loja Online</a></li>
             <li><a href="blog.html">Blog</a></li>
           </ul>
         </div>
@@ -580,7 +694,7 @@ function renderFooter() {
 function goToSearch(e) {
     e.preventDefault();
     const q = document.getElementById('header-search-input').value.trim();
-    window.location.href = 'search.html' + (q ? `?q=${encodeURIComponent(q)}` : '');
+    window.location.href = '/busca' + (q ? `?query=${encodeURIComponent(q)}` : '');
 }
 
 function toggleUserMenu(e) {
@@ -603,10 +717,11 @@ function updateCartBadge() {
     if (isAdminPage() || typeof Cart === 'undefined') return;
 
     const items = Cart.getItems();
+    const count = items.reduce((sum, item) => sum + Number(item.quantity || 1), 0);
     const badge = document.querySelector('.cart-badge');
     if (badge) {
-        if (items.length > 0) {
-            badge.textContent = items.length;
+        if (count > 0) {
+            badge.textContent = count;
             badge.style.display = 'flex';
         } else {
             badge.style.display = 'none';
@@ -618,6 +733,27 @@ function toast(message, type = 'info', duration = 3000) {
     if (typeof Notifications !== 'undefined') {
         const safeType = ['success', 'error', 'warning', 'info'].includes(type) ? type : 'info';
         Notifications[safeType](message, duration);
+        return;
+    }
+
+    const host = document.querySelector('main') || document.body;
+    if (!host) return;
+
+    let container = document.getElementById('site-feedback');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'site-feedback';
+        container.className = 'site-feedback';
+        host.prepend(container);
+    }
+
+    container.classList.add('is-visible');
+    container.textContent = String(message || '');
+    if (duration > 0) {
+        setTimeout(() => {
+            container.classList.remove('is-visible');
+            container.textContent = '';
+        }, duration);
     }
 }
 
@@ -716,6 +852,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (h) h.outerHTML = isAdminPage() ? renderAdminHeader() : renderHeader();
     if (f) f.outerHTML = isAdminPage() ? '' : renderFooter();
     updateCartBadge();
+    if (!isAdminPage() && typeof Cart !== 'undefined' && typeof Cart.syncFromServer === 'function') {
+        Cart.syncFromServer().catch(() => {});
+    }
     injectWhatsAppButton();
     injectThemeToggle();
     hydrateMegaMenu();

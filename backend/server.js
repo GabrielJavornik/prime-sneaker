@@ -18,10 +18,14 @@ async function ensureSchema() {
         `ALTER TABLE coupons ADD COLUMN IF NOT EXISTS min_value NUMERIC(10, 2) DEFAULT 0`,
         `ALTER TABLE coupons ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT TRUE`,
         `ALTER TABLE products ADD COLUMN IF NOT EXISTS brand VARCHAR(80)`,
+        `ALTER TABLE products ADD COLUMN IF NOT EXISTS model_group VARCHAR(120)`,
         `ALTER TABLE products ADD COLUMN IF NOT EXISTS gender VARCHAR(20) DEFAULT 'unissex'`,
         `ALTER TABLE products ADD COLUMN IF NOT EXISTS is_launch BOOLEAN DEFAULT FALSE`,
         `ALTER TABLE products ADD COLUMN IF NOT EXISTS is_outlet BOOLEAN DEFAULT FALSE`,
         `ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_percent NUMERIC(5, 2) DEFAULT 0`,
+        `ALTER TABLE products ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP`,
+        `CREATE INDEX IF NOT EXISTS idx_products_model_group_lower ON products (LOWER(model_group))`,
+        `CREATE INDEX IF NOT EXISTS idx_products_archived_at ON products (archived_at)`,
         `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_super_admin BOOLEAN DEFAULT FALSE`,
         `CREATE TABLE IF NOT EXISTS admin_audit_logs (
             id SERIAL PRIMARY KEY,
@@ -55,12 +59,27 @@ async function ensureSchema() {
         `UPDATE products
          SET is_outlet = TRUE
          WHERE COALESCE(discount_percent, 0) > 0`,
+        `UPDATE products
+         SET model_group = TRIM(name)
+         WHERE name IS NOT NULL
+           AND (model_group IS NULL OR TRIM(model_group) = '')`,
         `CREATE TABLE IF NOT EXISTS newsletter_subscribers (
             id SERIAL PRIMARY KEY,
             email VARCHAR(120) UNIQUE NOT NULL,
             active BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )`,
+        `CREATE TABLE IF NOT EXISTS cart_items (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+            size VARCHAR(10) NOT NULL DEFAULT '',
+            quantity INTEGER NOT NULL CHECK (quantity > 0),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, product_id, size)
+        )`,
+        `CREATE INDEX IF NOT EXISTS idx_cart_items_user_id ON cart_items(user_id)`,
     ];
     for (const sql of stmts) {
         try { await db.query(sql); } catch (_) { /* tabela ainda nao criada */ }
@@ -83,10 +102,23 @@ async function ensureSchema() {
     }
 }
 
-ensureSchema().finally(() => app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log('==============================================');
     console.log(` Servidor rodando em http://localhost:${PORT}`);
     console.log(` Swagger em http://localhost:${PORT}/api-docs`);
     console.log(` Frontend em http://localhost:${PORT}/`);
     console.log('==============================================');
-}));
+});
+
+server.on('error', (err) => {
+    console.error('[SERVER] Erro ao iniciar:', err.message);
+    process.exit(1);
+});
+
+ensureSchema()
+    .then(() => {
+        console.log('[DB] Estrutura do banco conferida.');
+    })
+    .catch((err) => {
+        console.error('[DB] Erro ao conferir estrutura do banco:', err.message);
+    });

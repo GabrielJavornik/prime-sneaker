@@ -6,6 +6,36 @@ const { logAdminAction } = require('../services/auditService');
 const { ORDER_STATUS } = require('../services/orderStatusService');
 
 const PaymentController = {
+    async previewPix(req, res, next) {
+        try {
+            const { couponCode, items } = req.body;
+
+            if (!items || !Array.isArray(items) || items.length === 0) {
+                return res.status(400).json({ error: 'Sem itens para gerar PIX' });
+            }
+
+            const pricing = await orderPricingService.calculateOrderPricing(items, couponCode);
+            const pixInfo = await pixService.generateQRCode(pricing.total, {
+                txid: `PS${Date.now()}`,
+                description: 'Prime Sneaker',
+            });
+
+            res.status(200).json({
+                ...pixInfo,
+                subtotal: pricing.subtotal,
+                shipping: pricing.shipping,
+                discount: pricing.discount,
+                total: pricing.total,
+                coupon: pricing.appliedCoupon ? {
+                    code: pricing.appliedCoupon.code,
+                    discount_percent: pricing.appliedCoupon.discount_percent,
+                } : null,
+            });
+        } catch (err) {
+            next(err);
+        }
+    },
+
     async checkout(req, res, next) {
         try {
             const { couponCode, items } = req.body;

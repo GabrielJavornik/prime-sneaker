@@ -6,6 +6,8 @@ let _adminProductsById = new Map();
 let _adminCouponsById = new Map();
 let _adminProductsPage = 1;
 let _adminCouponsPage = 1;
+let _adminAuditPage = 1;
+let _adminStockPage = 1;
 let _verifiedAdminUser = null;
 let _adminPanelInitialized = false;
 let _couponFormEnhancementsReady = false;
@@ -20,6 +22,50 @@ let _orderNotificationPollingStarted = false;
 const _adminLoadedTabs = new Set();
 const ADMIN_PRODUCTS_PER_PAGE = 10;
 const ADMIN_COUPONS_PER_PAGE = 10;
+const ADMIN_AUDIT_PER_PAGE = 10;
+const ADMIN_STOCK_PER_PAGE = 10;
+const MAX_PRODUCT_IMAGES = 4;
+let _currentGalleryImages = [];
+let _isProductFormSaving = false;
+const ADMIN_TIME_ZONE = 'America/Sao_Paulo';
+
+function isTimestampWithExplicitZone(value) {
+    return /([zZ]|[+-]\d{2}:?\d{2})$/.test(String(value || '').trim());
+}
+
+function formatAdminDateTime(value) {
+    if (!value) return '-';
+
+    const text = String(value).trim();
+    const localMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/);
+    if (localMatch && !isTimestampWithExplicitZone(text)) {
+        const [, year, month, day, hour, minute] = localMatch;
+        return `${day}/${month}/${year} ${hour}:${minute}`;
+    }
+
+    const date = new Date(text);
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleString('pt-BR', {
+        dateStyle: 'short',
+        timeStyle: 'short',
+        timeZone: ADMIN_TIME_ZONE,
+    });
+}
+
+function formatAdminDate(value) {
+    if (!value) return '-';
+
+    const text = String(value).trim();
+    const localMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (localMatch && !isTimestampWithExplicitZone(text)) {
+        const [, year, month, day] = localMatch;
+        return `${day}/${month}/${year}`;
+    }
+
+    const date = new Date(text);
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('pt-BR', { timeZone: ADMIN_TIME_ZONE });
+}
 
 function getAdminAuthHeader() {
     const adminToken = sessionStorage.getItem('adminToken');
@@ -181,7 +227,12 @@ function markAdminTabStale(...tabNames) {
 
 function clearPublicMenuFacetsCache() {
     try {
-        sessionStorage.removeItem('primeSneaker:megaMenuFacets:v1');
+        [
+            'primeSneaker:megaMenuFacets:v1',
+            'primeSneaker:megaMenuFacets:v2',
+            'primeSneaker:megaMenuFacets:v3',
+            'primeSneaker:megaMenuFacets:v4',
+        ].forEach(key => sessionStorage.removeItem(key));
     } catch (_) {}
 }
 
@@ -395,7 +446,7 @@ async function loadProducts(options = {}) {
             : (response.items || []);
         const tbody = document.querySelector('#products-table tbody');
         if (!products.length) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--muted);">Nenhum produto encontrado com esses filtros.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--muted);">Nenhum produto encontrado com esses filtros.</td></tr>';
             renderAdminPagination('products-pagination', pagination, loadProducts);
             return;
         }
@@ -405,19 +456,29 @@ async function loadProducts(options = {}) {
             const img = safeImageSrc(p.image_url, 'https://via.placeholder.com/50');
             const name = escapeHTML(p.name || 'Produto');
             const nameAttr = escapeAttribute(p.name || 'Produto');
-            const category = escapeHTML(p.category || '-');
+            const categoryLabel = escapeHTML(formatAdminCategoryLabel(p.category));
+            const categoryClass = escapeAttribute(normalizeAdminCategoryKey(p.category));
             const brand = escapeHTML(p.brand || '-');
             const gender = escapeHTML(p.gender || 'unissex');
+            const color = escapeHTML(p.color || '-');
+            const modelGroup = escapeHTML(p.model_group || '');
             const stock = Number(p.stock || 0);
 
             return `
       <tr>
-        <td><img src="${escapeAttribute(img)}" alt="${nameAttr}" loading="lazy" decoding="async"></td>
-        <td>${name}</td>
-        <td>${category}</td>
+        <td class="admin-product-name-cell">
+          <div class="admin-product-identity">
+            <img src="${escapeAttribute(img)}" alt="${nameAttr}" loading="lazy" decoding="async">
+            <div>
+              <strong class="admin-product-name">${name}</strong>
+              <div class="admin-product-row-meta">Cor: ${color}${modelGroup ? ` \u00b7 Grupo: ${modelGroup}` : ''}</div>
+            </div>
+          </div>
+        </td>
+        <td class="admin-product-category-cell"><span class="admin-category-pill admin-category-${categoryClass}">${categoryLabel}</span></td>
         <td>
-          <strong>${brand}</strong>
-          <div style="font-size: 0.78rem; color: var(--muted);">${gender}${getAdminProductFlag(p, ['is_launch', 'launch', 'lancamento', 'isLaunch']) ? ' \u00b7 Lan\u00e7amento' : ''}${(getAdminProductFlag(p, ['is_outlet', 'outlet', 'isOutlet']) || getAdminDiscountPercent(p) > 0) ? ' \u00b7 Outlet' : ''}</div>
+          <strong class="admin-table-main-text">${brand}</strong>
+          <div class="admin-table-muted-line">${gender}${getAdminProductFlag(p, ['is_launch', 'launch', 'lancamento', 'isLaunch']) ? ' \u00b7 Lan\u00e7amento' : ''}${(getAdminProductFlag(p, ['is_outlet', 'outlet', 'isOutlet']) || getAdminDiscountPercent(p) > 0) ? ' \u00b7 Outlet' : ''}</div>
         </td>
         <td>${getAdminDiscountPercent(p) > 0
             ? `<span style="display:block; color: var(--muted); text-decoration: line-through; font-size: 0.78rem;">${formatBRL(p.price)}</span><strong>${formatBRL(getAdminOutletPrice(p))}</strong><span style="display:block; color: var(--success); font-size: 0.76rem;">-${getAdminDiscountPercent(p)}%</span>`
@@ -450,6 +511,26 @@ async function loadProducts(options = {}) {
 
 function isTruthyAdminFlag(value) {
     return value === true || value === 'true' || value === '1' || value === 1 || value === 't' || value === 'yes';
+}
+
+function normalizeAdminCategoryKey(category) {
+    const raw = String(category || '').trim().toLowerCase();
+    if (!raw) return 'sem-categoria';
+    return raw
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9_-]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'sem-categoria';
+}
+
+function formatAdminCategoryLabel(category) {
+    const labels = {
+        casual: 'Casual',
+        esportivo: 'Esportivo',
+        formal: 'Formal',
+        trekking: 'Trekking',
+    };
+    return labels[normalizeAdminCategoryKey(category)] || String(category || '-').trim() || '-';
 }
 
 function getAdminProductFlag(product, fields) {
@@ -495,8 +576,89 @@ function setProductFormVisible(visible) {
     document.body?.classList.toggle('admin-drawer-open', Boolean(visible));
 }
 
+function setProductFormSaving(isSaving) {
+    _isProductFormSaving = Boolean(isSaving);
+    const form = document.getElementById('product-form');
+    if (!form) return;
+
+    form.classList.toggle('is-saving', _isProductFormSaving);
+    const submitButton = form.querySelector('button[type="submit"]');
+    if (submitButton && !submitButton.dataset.originalText) {
+        submitButton.dataset.originalText = submitButton.textContent.trim() || 'Salvar';
+    }
+
+    form.querySelectorAll('input, select, textarea, button').forEach(control => {
+        if (_isProductFormSaving) {
+            if (!control.disabled) {
+                control.dataset.productSaveLock = '1';
+                control.disabled = true;
+            }
+            return;
+        }
+
+        if (control.dataset.productSaveLock === '1') {
+            control.disabled = false;
+            delete control.dataset.productSaveLock;
+        }
+    });
+
+    if (submitButton) {
+        submitButton.textContent = _isProductFormSaving
+            ? 'Salvando...'
+            : (submitButton.dataset.originalText || 'Salvar');
+    }
+
+    document.querySelectorAll('label[for="gallery-new-file"], label[for="p-image-file"]').forEach(label => {
+        label.classList.toggle('is-disabled', _isProductFormSaving);
+        label.setAttribute('aria-disabled', _isProductFormSaving ? 'true' : 'false');
+    });
+}
+
+function setProductFormAlert(message = '', type = 'error') {
+    const alert = document.getElementById('product-form-alert');
+    if (!alert) return;
+
+    alert.className = 'admin-form-feedback';
+    alert.textContent = '';
+
+    if (!message) return;
+
+    alert.textContent = String(message);
+    alert.classList.add(type === 'success' ? 'is-success' : 'is-error', 'is-visible');
+    alert.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+function updateProductDescriptionCount() {
+    const textarea = document.getElementById('p-description');
+    const counter = document.getElementById('p-description-count');
+    if (!textarea || !counter) return;
+
+    const count = textarea.value.length;
+    counter.textContent = `${count}/500 caracteres`;
+    counter.classList.toggle('is-danger', count > 500);
+}
+
 function scrollToProductForm() {
     document.getElementById('p-name')?.focus();
+}
+
+function clearProductPhotoState() {
+    const mainImageInput = document.getElementById('p-image');
+    const mainFileInput = document.getElementById('p-image-file');
+    const galleryUrlInput = document.getElementById('gallery-new-url');
+    const galleryFileInput = document.getElementById('gallery-new-file');
+
+    if (mainImageInput) {
+        mainImageInput.value = '';
+        mainImageInput.defaultValue = '';
+    }
+    if (mainFileInput) mainFileInput.value = '';
+    if (galleryUrlInput) galleryUrlInput.value = '';
+    if (galleryFileInput) galleryFileInput.value = '';
+
+    _currentGalleryImages = [];
+    updateSelectedFileLabel('p-image-file', 'p-image-file-count');
+    updateSelectedFileLabel('gallery-new-file', 'gallery-file-count');
 }
 
 function closeProductForm() {
@@ -505,15 +667,20 @@ function closeProductForm() {
 
 function openProductCreateForm() {
     resetProductForm({ hide: false });
+    clearProductPhotoState();
+    setProductFormAlert('');
     document.getElementById('product-form-title').textContent = 'Cadastrar novo t\u00eanis';
     const galleryManager = document.getElementById('gallery-manager');
-    if (galleryManager) galleryManager.style.display = 'none';
+    if (galleryManager) galleryManager.style.display = 'block';
+    window._editingProductId = null;
+    renderGalleryImages([]);
     setProductFormVisible(true);
     scrollToProductForm();
 }
 
 async function editProduct(p) {
     setProductFormVisible(true);
+    setProductFormAlert('');
     document.getElementById('product-id').value = p.id;
     document.getElementById('p-name').value = p.name;
     document.getElementById('p-price').value = p.price;
@@ -522,6 +689,7 @@ async function editProduct(p) {
     document.getElementById('p-image').value = p.image_url || '';
     document.getElementById('p-sizes').value = p.sizes || '';
     document.getElementById('p-color').value = p.color || '';
+    document.getElementById('p-model-group').value = p.model_group || '';
     document.getElementById('p-category').value = p.category || 'casual';
     document.getElementById('p-brand').value = p.brand || '';
     document.getElementById('p-gender').value = p.gender || 'unissex';
@@ -529,6 +697,9 @@ async function editProduct(p) {
     document.getElementById('p-outlet').checked = getAdminProductFlag(p, ['is_outlet', 'outlet', 'isOutlet']);
     document.getElementById('product-form-title').textContent = `Editando produto #${p.id}`;
     updateDiscountPreview();
+    updateProductDescriptionCount();
+    _currentGalleryImages = [];
+    renderGalleryImages([]);
 
     // Carregar estoque por tamanho
     loadSizeStockInputs(p.id, p.sizes);
@@ -586,16 +757,21 @@ async function loadSizeStockInputs(productId, sizeString) {
 
 function resetProductForm(options = {}) {
     const shouldHide = options.hide !== false;
+    setProductFormSaving(false);
     document.getElementById('product-form').reset();
     document.getElementById('product-id').value = '';
     document.getElementById('product-form-title').textContent = 'Cadastrar novo t\u00eanis';
+    clearProductPhotoState();
+    setProductFormAlert('');
+    setUploadStatus('p-image-upload-status', 'Voc\u00ea pode colar um link ou enviar PNG, JPG, WEBP ou GIF at\u00e9 5MB.');
+    setUploadStatus('gallery-upload-status', 'Adicione de 1 a 4 fotos. A primeira foto ser\u00e1 a principal do produto.');
     updateDiscountPreview();
+    updateProductDescriptionCount();
+    window._editingProductId = null;
     const galleryManager = document.getElementById('gallery-manager');
     if (galleryManager) galleryManager.style.display = 'none';
     const galleryList = document.getElementById('gallery-images-list');
     if (galleryList) galleryList.innerHTML = '';
-    const galleryUrl = document.getElementById('gallery-new-url');
-    if (galleryUrl) galleryUrl.value = '';
     const sizeStockContainer = document.getElementById('size-stock-inputs');
     if (sizeStockContainer) {
         sizeStockContainer.innerHTML = '<p style="color: var(--muted); font-size: 0.9rem;">Digite tamanhos acima para configurar estoque de cada um.</p>';
@@ -605,6 +781,19 @@ function resetProductForm(options = {}) {
 
 document.getElementById('product-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (_isProductFormSaving) return;
+    setProductFormAlert('');
+
+    const descriptionValue = document.getElementById('p-description')?.value || '';
+    updateProductDescriptionCount();
+    if (descriptionValue.trim().length > 500) {
+        setProductFormAlert(`A descri\u00e7\u00e3o tem ${descriptionValue.trim().length} caracteres. O limite \u00e9 500. Reduza o texto para salvar.`);
+        return;
+    }
+
+    setProductFormSaving(true);
+
+    try {
     const id = document.getElementById('product-id').value;
     const sizeStocks = [];
     document.querySelectorAll('.size-stock-input').forEach(input => {
@@ -615,20 +804,26 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
 
     // Validar que ha estoque por tamanho ao criar novo produto
     if (!id && sizeStocks.length === 0) {
-        toast('Adicione tamanhos e estoque antes de criar o produto', 'error');
+        setProductFormAlert('Adicione tamanhos e estoque antes de criar o produto.');
         return;
     }
 
     const isLaunch = document.getElementById('p-launch').checked;
     const discountPercent = Number(document.getElementById('p-discount').value || 0);
     const isOutlet = document.getElementById('p-outlet').checked || discountPercent > 0;
+    const pendingGalleryImages = !id
+        ? _currentGalleryImages
+            .filter(img => img && img._pending && String(img.image_url || '').trim())
+            .map(img => ({ ...img, image_url: String(img.image_url || '').trim() }))
+        : [];
     const data = {
         name: document.getElementById('p-name').value,
         price: Number(document.getElementById('p-price').value),
         description: document.getElementById('p-description').value,
-        image_url: document.getElementById('p-image').value,
+        image_url: document.getElementById('p-image').value.trim(),
         sizes: document.getElementById('p-sizes').value,
         color: document.getElementById('p-color').value,
+        model_group: document.getElementById('p-model-group').value.trim(),
         category: document.getElementById('p-category').value,
         brand: document.getElementById('p-brand').value.trim(),
         gender: document.getElementById('p-gender').value,
@@ -638,10 +833,26 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
         outlet: isOutlet,
         discount_percent: discountPercent,
         outlet_discount_percent: discountPercent,
-        stock: sizeStocks.reduce((sum, s) => sum + s.stock, 0) || 10, // Total dos tamanhos
+        stock: sizeStocks.reduce((sum, s) => sum + s.stock, 0),
     };
+    const galleryImagesToSave = [...pendingGalleryImages];
+    if (!data.image_url && galleryImagesToSave.length) {
+        data.image_url = galleryImagesToSave.shift().image_url;
+        document.getElementById('p-image').value = data.image_url;
+    }
+
+    if (!data.image_url && id && _currentGalleryImages.length) {
+        data.image_url = String(_currentGalleryImages[0]?.image_url || '').trim();
+        document.getElementById('p-image').value = data.image_url;
+    }
+
+    const totalImages = (data.image_url ? 1 : 0) + galleryImagesToSave.length;
+    if (totalImages > MAX_PRODUCT_IMAGES) {
+        setProductFormAlert(`O produto pode ter no máximo ${MAX_PRODUCT_IMAGES} imagens.`);
+        return;
+    }
+
     const auth = getAdminAuthHeader();
-    try {
         if (id) {
             await API.updateProduct(id, data, auth);
 
@@ -660,7 +871,21 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
 
             toast('Produto atualizado!', 'success');
         } else {
-            await API.createProduct(data, auth);
+            const createdProduct = await API.createProduct(data, auth);
+            if (createdProduct?.id && sizeStocks.length > 0) {
+                try {
+                    await API.request(`/products/${createdProduct.id}/size-stock`, {
+                        method: 'POST',
+                        headers: auth ? { Authorization: auth } : {},
+                        body: { stocks: sizeStocks },
+                    });
+                } catch (err) {
+                    console.warn('Erro ao salvar estoque por tamanho:', err.message);
+                }
+            }
+            if (createdProduct?.id && galleryImagesToSave.length) {
+                await savePendingGalleryImages(createdProduct.id, galleryImagesToSave);
+            }
             toast('Produto cadastrado!', 'success');
         }
         resetProductForm();
@@ -668,21 +893,76 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
         markAdminTabStale('dashboard', 'estoque');
         loadProducts();
     } catch (err) {
-        toast('Erro: ' + err.message, 'error');
+        setProductFormAlert(err.message || 'Erro ao salvar produto. Verifique os campos e tente novamente.');
+    } finally {
+        setProductFormSaving(false);
     }
 });
 
-async function deleteProduct(id) {
-    if (!confirm('Deseja realmente excluir este produto?')) return;
-    try {
-        await API.deleteProduct(id, getAdminAuthHeader());
-        toast('Produto exclu\u00eddo!', 'success');
-        clearPublicMenuFacetsCache();
-        markAdminTabStale('dashboard', 'estoque');
-        loadProducts();
-    } catch (err) {
-        toast('Erro: ' + err.message, 'error');
+document.getElementById('p-description')?.addEventListener('input', () => {
+    updateProductDescriptionCount();
+    const textarea = document.getElementById('p-description');
+    if (textarea && textarea.value.trim().length <= 500) {
+        setProductFormAlert('');
     }
+});
+
+document.getElementById('p-image-file')?.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    updateSelectedFileLabel('p-image-file', 'p-image-file-count');
+
+    try {
+        setUploadStatus('p-image-upload-status', 'Enviando imagem...', 'muted');
+        const uploaded = await uploadLocalProductImage(file);
+        document.getElementById('p-image').value = uploaded.image_url || uploaded.url;
+        setUploadStatus('p-image-upload-status', 'Foto enviada. Ela sera usada como imagem principal.', 'success');
+        renderGalleryImages(_currentGalleryImages);
+    } catch (err) {
+        setUploadStatus('p-image-upload-status', err.message, 'error');
+    } finally {
+        event.target.value = '';
+        updateSelectedFileLabel('p-image-file', 'p-image-file-count');
+    }
+});
+
+document.getElementById('p-image')?.addEventListener('input', () => {
+    renderGalleryImages(_currentGalleryImages);
+});
+
+document.getElementById('gallery-new-file')?.addEventListener('change', () => {
+    updateSelectedFileLabel('gallery-new-file', 'gallery-file-count');
+});
+
+async function deleteProduct(id) {
+    const product = _adminProductsById.get(String(id)) || {};
+    const productName = product.name || 'este produto';
+    const details = `
+        <div><span>Produto</span><strong>${escapeHTML(productName)}</strong></div>
+        <div><span>Categoria</span><strong>${escapeHTML(formatAdminCategoryLabel(product.category))}</strong></div>
+        <div><span>Estoque atual</span><strong>${Number(product.stock || 0)} unidade(s)</strong></div>
+    `;
+
+    showConfirmModal(
+        'Essa a\u00e7\u00e3o remove o produto do cat\u00e1logo e n\u00e3o pode ser desfeita pelo painel.',
+        async () => {
+            try {
+                const response = await API.deleteProduct(id, getAdminAuthHeader());
+                toast(response.message || 'Produto exclu\u00eddo!', 'success');
+                clearPublicMenuFacetsCache();
+                markAdminTabStale('dashboard', 'estoque');
+                loadProducts();
+            } catch (err) {
+                toast('Erro: ' + err.message, 'error');
+            }
+        },
+        {
+            title: `Excluir ${productName}?`,
+            confirmLabel: 'Excluir produto',
+            details,
+            danger: true,
+        }
+    );
 }
 
 /* ============================================================
@@ -708,7 +988,7 @@ async function loadNewsletterSubscribers() {
         }
 
         tbody.innerHTML = subscribers.map(sub => {
-            const created = sub.created_at ? new Date(sub.created_at).toLocaleDateString('pt-BR') : '-';
+            const created = formatAdminDate(sub.created_at);
             const status = sub.active
                 ? '<span style="color: var(--success); font-weight: 700;">Ativo</span>'
                 : '<span style="color: var(--muted);">Inativo</span>';
@@ -725,6 +1005,60 @@ async function loadNewsletterSubscribers() {
         tbody.innerHTML = `<tr><td colspan="3" style="color: var(--danger);">Erro ao carregar inscritos: ${escapeHTML(err.message)}</td></tr>`;
         toast('Erro ao carregar inscritos: ' + err.message, 'error');
     }
+}
+
+function setUploadStatus(elementId, message, type = 'muted') {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.textContent = message;
+    el.classList.remove('is-success', 'is-error');
+    if (type === 'success') el.classList.add('is-success');
+    if (type === 'error') el.classList.add('is-error');
+}
+
+function updateSelectedFileLabel(inputId, labelId, emptyText = 'Nenhuma foto selecionada') {
+    const input = document.getElementById(inputId);
+    const label = document.getElementById(labelId);
+    if (!input || !label) return;
+
+    const files = Array.from(input.files || []);
+    if (!files.length) {
+        label.textContent = emptyText;
+        return;
+    }
+
+    label.textContent = files.length === 1
+        ? files[0].name
+        : `${files.length} fotos selecionadas`;
+}
+
+function readImageFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Nao foi possivel ler a imagem.'));
+        reader.readAsDataURL(file);
+    });
+}
+
+function validateLocalImageFile(file) {
+    if (!file) throw new Error('Selecione uma foto.');
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+        throw new Error('Use uma imagem PNG, JPG, WEBP ou GIF.');
+    }
+    if (file.size > 5 * 1024 * 1024) {
+        throw new Error('Imagem muito grande. Limite maximo: 5MB.');
+    }
+}
+
+async function uploadLocalProductImage(file) {
+    validateLocalImageFile(file);
+    const image = await readImageFileAsDataUrl(file);
+    return API.uploadProductImage({
+        image,
+        file_name: file.name,
+    }, getAdminAuthHeader());
 }
 
 function getPromotionPayload() {
@@ -973,7 +1307,7 @@ function setCouponFormVisible(visible) {
 
     if (visible) {
         document.body?.classList.add('admin-drawer-open');
-    } else if (!document.querySelector('.admin-products-form-card.is-visible, .admin-coupon-drawer.is-visible')) {
+    } else if (!document.querySelector('.admin-products-form-card.is-visible, .admin-coupon-drawer.is-visible, .admin-admin-drawer.is-visible')) {
         document.body?.classList.remove('admin-drawer-open');
     }
 }
@@ -1060,7 +1394,7 @@ async function loadCoupons(options = {}) {
         const tbody = document.querySelector('#coupons-table tbody');
         const canManageCoupons = isSuperAdminLogged();
         if (!coupons.length) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--muted);">Nenhum cupom cadastrado.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--muted);">Nenhum cupom cadastrado.</td></tr>';
             renderAdminPagination('coupons-pagination', pagination, loadCoupons);
             return;
         }
@@ -1074,12 +1408,18 @@ async function loadCoupons(options = {}) {
 
             return `
       <tr>
-        <td><span class="coupon-code-pill">${escapeHTML(c.code)}</span></td>
-        <td>${c.discount_percent}%</td>
-        <td>R$ ${minVal.toFixed(2)}</td>
-        <td><small>${expires}</small></td>
-        <td><small>${uses}</small></td>
-        <td><span class="coupon-status-badge ${status.className}">${escapeHTML(status.label)}</span></td>
+        <td>
+          <span class="coupon-code-pill">${escapeHTML(c.code)}</span>
+          <div class="admin-table-muted-line"><span class="coupon-status-badge ${status.className}">${escapeHTML(status.label)}</span></div>
+        </td>
+        <td>
+          <strong>${c.discount_percent}% de desconto</strong>
+          <div class="admin-table-muted-line">M&iacute;nimo: R$ ${minVal.toFixed(2)}</div>
+        </td>
+        <td>
+          <strong>${expires}</strong>
+          <div class="admin-table-muted-line">Usos: ${uses}</div>
+        </td>
         <td class="actions-col">
           ${canManageCoupons ? `
             <button class="btn-icon btn-edit" onclick="editCoupon('${c.id}')">Editar</button>
@@ -1180,7 +1520,35 @@ async function deleteCoupon(id) {
         return;
     }
 
-    if (!confirm('Excluir este cupom?')) return;
+    const coupon = _adminCouponsById.get(String(id));
+    const couponCode = coupon?.code || `#${id}`;
+    const status = coupon ? getCouponStatusMeta(coupon) : null;
+    const validity = coupon?.expires_at
+        ? formatAdminDate(coupon.expires_at)
+        : 'Sem prazo';
+    const uses = coupon
+        ? `${Number(coupon.uses_count || 0)}/${coupon.max_uses ? Number(coupon.max_uses) : 'ilimitado'}`
+        : '-';
+
+    showConfirmModal(
+        `Tem certeza que deseja excluir o cupom ${escapeHTML(couponCode)}?`,
+        () => confirmDeleteCoupon(id),
+        {
+            title: 'Excluir cupom',
+            confirmLabel: 'Excluir cupom',
+            danger: true,
+            details: `
+                <div><span>Código</span><strong>${escapeHTML(couponCode)}</strong></div>
+                ${coupon ? `<div><span>Desconto</span><strong>${escapeHTML(coupon.discount_percent)}%</strong></div>` : ''}
+                ${status ? `<div><span>Status</span><strong>${escapeHTML(status.label)}</strong></div>` : ''}
+                <div><span>Validade</span><strong>${escapeHTML(validity)}</strong></div>
+                <div><span>Usos</span><strong>${escapeHTML(uses)}</strong></div>
+            `,
+        }
+    );
+}
+
+async function confirmDeleteCoupon(id) {
     try {
         await API.deleteCoupon(id, getAdminAuthHeader());
         toast('Cupom exclu\u00eddo!', 'success');
@@ -1457,9 +1825,7 @@ function renderPendingPaymentOrders(pendingResponse = {}) {
         <div class="admin-pending-order-list">
             ${items.slice(0, 6).map(order => {
                 const orderId = Number(order.id) || 0;
-                const created = order.created_at
-                    ? new Date(order.created_at).toLocaleDateString('pt-BR')
-                    : '-';
+                const created = formatAdminDate(order.created_at);
                 return `
                     <div class="admin-pending-order-card">
                         <div>
@@ -1534,7 +1900,7 @@ async function loadDashboard() {
                         <td>${escapeHTML(tx.name || '-')}</td>
                         <td>${formatBRL(tx.amount)}</td>
                         <td><span style="background: ${tx.status === 'confirmed' ? 'var(--success)' : 'var(--warning)'}; color: white; padding: 0.25rem 0.5rem; border-radius: 3px;">${escapeHTML(tx.status)}</span></td>
-                        <td>${new Date(tx.created_at).toLocaleDateString('pt-BR')}</td>
+                        <td>${formatAdminDate(tx.created_at)}</td>
                     </tr>
                 `).join('');
             } else {
@@ -1689,6 +2055,77 @@ function nextActionsForStatus(status) {
     }
 }
 
+function renderAdminOrderActionButton(orderId, action) {
+    const metaClass = ORDER_STATUS_META[action.to]?.className || '';
+    const riskClass = action.to === 'cancelado'
+        ? 'is-danger-action'
+        : action.to === 'processando'
+            ? 'is-confirm-action'
+            : '';
+
+    return `
+        <button type="button"
+                class="admin-order-action ${metaClass} ${riskClass}"
+                onclick="changeOrderStatus(${orderId}, '${action.to}')">
+            ${escapeHTML(action.label)}
+        </button>
+    `;
+}
+
+function renderAdminOrderActions(orderId, actions) {
+    if (!actions.length) {
+        return '<span class="admin-order-no-actions">Sem a\u00e7\u00f5es dispon\u00edveis</span>';
+    }
+
+    const cancelAction = actions.find(action => action.to === 'cancelado');
+    const mainActions = actions.filter(action => action.to !== 'cancelado');
+
+    return `
+        <div class="admin-order-action-stack">
+            ${mainActions.length ? `
+                <div class="admin-order-safe-actions">
+                    ${mainActions.map(action => renderAdminOrderActionButton(orderId, action)).join('')}
+                </div>
+            ` : ''}
+            ${cancelAction ? `
+                <div class="admin-order-danger-zone">
+                    ${renderAdminOrderActionButton(orderId, cancelAction)}
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+function getOrderStatusConfirmationCopy(orderId, newStatus, label) {
+    if (newStatus === 'processando') {
+        return {
+            title: `Confirmar pagamento do pedido #${orderId}?`,
+            message: 'Confirme somente se o valor PIX realmente entrou na conta. Depois disso, o pedido vai para preparo.',
+            confirmLabel: 'Sim, pagamento recebido',
+            danger: false,
+            warning: 'Essa a\u00e7\u00e3o altera o status e libera a opera\u00e7\u00e3o do pedido.',
+        };
+    }
+
+    if (newStatus === 'cancelado') {
+        return {
+            title: `Cancelar pedido #${orderId}?`,
+            message: 'Essa a\u00e7\u00e3o marca o pedido como cancelado e abre o WhatsApp do cliente para contato.',
+            confirmLabel: 'Sim, cancelar pedido',
+            danger: true,
+            warning: 'Confira o pedido antes de cancelar. Pedidos cancelados n\u00e3o entram mais no fluxo de preparo.',
+        };
+    }
+
+    return {
+        title: 'Alterar status do pedido',
+        message: `Voc\u00ea vai alterar o pedido <strong>#${orderId}</strong> para <strong>${escapeHTML(label)}</strong>.`,
+        confirmLabel: `Confirmar ${label}`,
+        danger: false,
+        warning: '',
+    };
+}
+
 // Cache dos pedidos carregados, para atualizar cards individuais
 // sem precisar refazer o fetch de toda a lista a cada troca de status.
 let _adminOrdersCache = [];
@@ -1773,8 +2210,13 @@ function openCancelledOrderWhatsApp(order) {
 
     if (opened) {
         opened.opener = null;
+        opened.focus();
     } else {
-        window.location.href = whatsappUrl;
+        if (typeof copyTextWithFeedback === 'function') {
+            copyTextWithFeedback(whatsappUrl, 'Link do WhatsApp copiado. Abra em uma nova guia.');
+        } else {
+            toast('Permita pop-ups para abrir o WhatsApp em outra guia.', 'warning');
+        }
     }
 }
 
@@ -1894,19 +2336,9 @@ function renderAdminOrderCard(order) {
     const customerName = escapeHTML(order.customer_name || 'Sem nome');
     const customerEmail = escapeHTML(order.customer_email || '-');
     const customerPhone = escapeHTML(order.customer_phone || '');
-    const actionsHtml = actions.length === 0
-        ? '<span class="admin-order-no-actions">Sem a\u00e7\u00f5es dispon\u00edveis</span>'
-        : actions.map(a => `
-            <button type="button"
-                    class="admin-order-action ${ORDER_STATUS_META[a.to]?.className || ''}"
-                    onclick="changeOrderStatus(${orderId}, '${a.to}')">
-                ${a.label}
-            </button>
-        `).join('');
+    const actionsHtml = renderAdminOrderActions(orderId, actions);
 
-    const created = order.created_at
-        ? new Date(order.created_at).toLocaleDateString('pt-BR') + ' ' + new Date(order.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-        : '-';
+    const created = formatAdminDateTime(order.created_at);
 
     return `
         <div id="order-card-${orderId}" class="admin-order-card ${meta.className || ''}">
@@ -1943,7 +2375,7 @@ function showConfirmModal(message, onConfirm, options = {}) {
     const modal = document.createElement('div');
     modal.className = 'confirm-modal';
     modal.innerHTML = `
-        <div class="confirm-modal-content">
+        <div class="confirm-modal-content ${options.danger ? 'is-danger-confirm' : ''}">
             <h3>${escapeHTML(options.title || 'Confirmar a\u00e7\u00e3o')}</h3>
             <p>${message}</p>
             ${options.details ? `<div class="confirm-modal-details">${options.details}</div>` : ''}
@@ -1975,8 +2407,10 @@ async function changeOrderStatus(orderId, newStatus) {
     const cachedBeforeModal = _adminOrdersCache.find(o => o.id === orderId);
     const previousLabel = ORDER_STATUS_META[cachedBeforeModal?.status]?.label || 'Status atual';
     const label = ORDER_STATUS_META[newStatus]?.label || newStatus;
+    const confirmation = getOrderStatusConfirmationCopy(orderId, newStatus, label);
+
     showConfirmModal(
-        `Voc\u00ea vai alterar o pedido <strong>#${orderId}</strong> para <strong>${label}</strong>.`,
+        confirmation.message,
         async function() {
             // Guardar status anterior para possível rollback
             const cached = _adminOrdersCache.find(o => o.id === orderId);
@@ -2037,12 +2471,13 @@ async function changeOrderStatus(orderId, newStatus) {
             }
         },
         {
-            title: 'Alterar status do pedido',
-            confirmLabel: `Confirmar ${label}`,
+            title: confirmation.title,
+            confirmLabel: confirmation.confirmLabel,
+            danger: confirmation.danger,
             details: `
                 <div><span>De</span><strong>${escapeHTML(previousLabel)}</strong></div>
                 <div><span>Para</span><strong>${escapeHTML(label)}</strong></div>
-                ${newStatus === 'cancelado' ? '<small>Ao cancelar, o WhatsApp do cliente ser&aacute; aberto para contato.</small>' : ''}
+                ${confirmation.warning ? `<small>${escapeHTML(confirmation.warning)}</small>` : ''}
             `,
         }
     );
@@ -2069,28 +2504,56 @@ async function viewOrderDetail(orderId) {
             return;
         }
         box.innerHTML = `
-            <strong style="display: block; margin-bottom: 0.4rem;">Itens do pedido:</strong>
-            <div class="admin-table-wrapper" style="--admin-table-min-width: 640px;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+            <strong class="admin-order-detail-title">Itens do pedido:</strong>
+            <div class="admin-table-wrapper admin-order-items-wrapper" style="--admin-table-min-width: 760px;">
+            <table class="admin-order-items-table">
                 <thead>
-                    <tr style="background: var(--bg-soft, #f7f7f7);">
-                        <th style="padding: 0.4rem; text-align: left;">Produto</th>
-                        <th style="padding: 0.4rem; text-align: center;">Tamanho</th>
-                        <th style="padding: 0.4rem; text-align: center;">Qtd</th>
-                        <th style="padding: 0.4rem; text-align: right;">Pre\u00e7o</th>
-                        <th style="padding: 0.4rem; text-align: right;">Subtotal</th>
+                    <tr>
+                        <th>Produto comprado</th>
+                        <th>Detalhes</th>
+                        <th>Qtd</th>
+                        <th>Pre\u00e7o</th>
+                        <th>Subtotal</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${items.map(it => `
-                        <tr>
-                            <td style="padding: 0.4rem; border-bottom: 1px solid #eee;">${escapeHTML(it.product_name || '-')}</td>
-                            <td style="padding: 0.4rem; border-bottom: 1px solid #eee; text-align: center;">${escapeHTML(it.size || '-')}</td>
-                            <td style="padding: 0.4rem; border-bottom: 1px solid #eee; text-align: center;">${Number(it.quantity) || 0}</td>
-                            <td style="padding: 0.4rem; border-bottom: 1px solid #eee; text-align: right;">${formatBRL(it.product_price)}</td>
-                            <td style="padding: 0.4rem; border-bottom: 1px solid #eee; text-align: right;"><strong>${formatBRL(it.line_total)}</strong></td>
-                        </tr>
-                    `).join('')}
+                    ${items.map(it => {
+                        const productName = it.product_name || '-';
+                        const imageUrl = safeImageSrc(it.image_url, 'https://via.placeholder.com/96?text=Produto');
+                        const details = [
+                            it.brand ? `Marca: ${it.brand}` : '',
+                            it.color ? `Cor: ${it.color}` : '',
+                            it.size ? `Tamanho: ${it.size}` : '',
+                            it.product_id ? `Produto #${it.product_id}` : '',
+                        ].filter(Boolean);
+
+                        return `
+                            <tr>
+                                <td>
+                                    <div class="admin-order-item-product">
+                                        <img src="${escapeAttribute(imageUrl)}"
+                                             alt="${escapeAttribute(productName)}"
+                                             loading="lazy"
+                                             decoding="async">
+                                        <div>
+                                            <strong>${escapeHTML(productName)}</strong>
+                                            ${it.color ? `<span>Cor selecionada: ${escapeHTML(it.color)}</span>` : ''}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="admin-order-item-details">
+                                        ${details.length
+                                            ? details.map(detail => `<span>${escapeHTML(detail)}</span>`).join('')
+                                            : '<span>Sem detalhes adicionais</span>'}
+                                    </div>
+                                </td>
+                                <td class="admin-order-item-center">${Number(it.quantity) || 0}</td>
+                                <td class="admin-order-item-money">${formatBRL(it.product_price)}</td>
+                                <td class="admin-order-item-money"><strong>${formatBRL(it.line_total)}</strong></td>
+                            </tr>
+                        `;
+                    }).join('')}
                 </tbody>
             </table>
             </div>
@@ -2191,24 +2654,24 @@ function renderClientesTable() {
 
     const customers = getFilteredAdminCustomers();
     if (!customers.length) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--muted); padding: 1rem;">Nenhum cliente encontrado com esse filtro.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--muted); padding: 1rem;">Nenhum cliente encontrado com esse filtro.</td></tr>';
         return;
     }
 
     tbody.innerHTML = customers.map(client => {
         const orders = Number(client.total_orders || 0);
         const spent = Number(client.total_spent || 0);
-        const lastOrder = client.last_order_date ? new Date(client.last_order_date).toLocaleDateString('pt-BR') : 'Nunca';
+        const lastOrder = client.last_order_date ? formatAdminDate(client.last_order_date) : 'Nunca';
         const email = client.email || '';
 
         return `
             <tr>
                 <td>
                     <strong>${escapeHTML(client.name || '-')}</strong>
+                    <div class="admin-table-muted-line">${escapeHTML(email || '-')}</div>
+                    <div class="admin-table-muted-line">${escapeHTML(client.phone || 'Sem telefone')}</div>
                     ${orders > 0 ? '<span class="admin-client-badge">Cliente comprador</span>' : ''}
                 </td>
-                <td>${escapeHTML(email || '-')}</td>
-                <td>${escapeHTML(client.phone || 'N/A')}</td>
                 <td>${orders}</td>
                 <td><strong>${formatBRL(spent)}</strong></td>
                 <td>${lastOrder}</td>
@@ -2264,7 +2727,7 @@ function setupAdminStockFilters() {
     _adminStockFiltersReady = true;
 
     const sort = document.getElementById('admin-stock-sort');
-    if (sort) sort.addEventListener('change', renderEstoqueTable);
+    if (sort) sort.addEventListener('change', () => loadEstoqueReport({ resetPage: true }));
 }
 
 function updateStockSummary(severity = {}, items = []) {
@@ -2293,25 +2756,110 @@ function updateStockSummary(severity = {}, items = []) {
 }
 
 function getSortedLowStockItems() {
-    const sort = document.getElementById('admin-stock-sort')?.value || 'stock_asc';
-    const items = [..._adminLowStockItemsCache];
+    return [..._adminLowStockItemsCache];
+}
 
-    items.sort((a, b) => {
-        if (sort === 'severity') {
-            const rankDiff = getStockSeverityMeta(a.stock).rank - getStockSeverityMeta(b.stock).rank;
-            if (rankDiff !== 0) return rankDiff;
-            return Number(a.stock || 0) - Number(b.stock || 0);
+function parseAdminJsonArray(value) {
+    if (Array.isArray(value)) return value;
+    if (typeof value !== 'string') return [];
+
+    try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+        return [];
+    }
+}
+
+function getProductStockBySize(product = {}) {
+    const cachedProduct = _adminProductsById.get(String(product.id || '')) || {};
+    const rawSizes = [
+        ...parseAdminJsonArray(product.stock_by_size),
+        ...parseAdminJsonArray(product.stockBySize),
+        ...parseAdminJsonArray(product.size_stock),
+        ...parseAdminJsonArray(product.sizeStock),
+        ...parseAdminJsonArray(cachedProduct.stock_by_size),
+        ...parseAdminJsonArray(cachedProduct.stockBySize),
+    ];
+
+    const trackedSizes = rawSizes
+        .map(item => ({
+            size: String(item.size ?? item.tamanho ?? '').trim(),
+            stock: Number(item.stock ?? item.quantity ?? item.quantidade ?? 0),
+            tracked: true,
+        }))
+        .filter(item => item.size)
+        .sort((a, b) => {
+            const aNumber = Number(a.size.replace(',', '.'));
+            const bNumber = Number(b.size.replace(',', '.'));
+            if (Number.isFinite(aNumber) && Number.isFinite(bNumber)) return aNumber - bNumber;
+            return a.size.localeCompare(b.size, 'pt-BR', { numeric: true });
+        });
+
+    if (trackedSizes.length) return trackedSizes;
+
+    return String(product.sizes || cachedProduct.sizes || '')
+        .split(',')
+        .map(size => size.trim())
+        .filter(Boolean)
+        .sort((a, b) => {
+            const aNumber = Number(a.replace(',', '.'));
+            const bNumber = Number(b.replace(',', '.'));
+            if (Number.isFinite(aNumber) && Number.isFinite(bNumber)) return aNumber - bNumber;
+            return a.localeCompare(b, 'pt-BR', { numeric: true });
+        })
+        .map(size => ({ size, stock: null, tracked: false }));
+}
+
+async function hydrateStockItemsWithSizes(items = []) {
+    await Promise.all(items.map(async product => {
+        const cachedProduct = _adminProductsById.get(String(product.id || '')) || {};
+        if (!product.sizes && cachedProduct.sizes) {
+            product.sizes = cachedProduct.sizes;
         }
-        if (sort === 'stock_desc') {
-            return Number(b.stock || 0) - Number(a.stock || 0);
+
+        if (getProductStockBySize(product).some(item => item.tracked) || !product.id) {
+            return;
         }
-        if (sort === 'name_asc') {
-            return String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR');
+
+        try {
+            const stocks = await fetch(`/api/products/${product.id}/size-stock`).then(response => response.json());
+            if (Array.isArray(stocks) && stocks.length) {
+                product.stock_by_size = stocks;
+                if (!product.sizes) {
+                    product.sizes = stocks.map(item => item.size).filter(Boolean).join(',');
+                }
+            }
+        } catch (err) {
+            console.warn('Erro ao carregar estoque por tamanho:', err.message);
         }
-        return Number(a.stock || 0) - Number(b.stock || 0);
-    });
+    }));
 
     return items;
+}
+
+function renderStockBySize(product = {}) {
+    const sizes = getProductStockBySize(product);
+    if (!sizes.length) {
+        return '<span class="stock-size-empty">Sem tamanhos cadastrados</span>';
+    }
+
+    const hasTrackedStock = sizes.some(item => item.tracked);
+
+    return `
+        <div class="stock-size-list" aria-label="Estoque por tamanho">
+            ${sizes.map(item => {
+                const meta = item.tracked ? getStockSeverityMeta(item.stock) : { className: 'is-untracked' };
+                return `
+                    <span class="stock-size-pill ${meta.className}" title="${item.tracked ? `Tamanho ${escapeAttribute(item.size)} com ${item.stock} unidade(s)` : `Tamanho ${escapeAttribute(item.size)} sem estoque separado`}">
+                        <strong>${escapeHTML(item.size)}</strong>
+                        ${item.tracked ? `<span>${item.stock}</span>` : ''}
+                    </span>
+                `;
+            }).join('')}
+            ${hasTrackedStock ? '' : '<small class="stock-size-note">Estoque não separado por tamanho</small>'}
+        </div>
+    `;
 }
 
 function renderEstoqueTable() {
@@ -2320,7 +2868,7 @@ function renderEstoqueTable() {
 
     const items = getSortedLowStockItems();
     if (!items.length) {
-        estoqueTable.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--success); padding: 1rem;">Nenhum produto em estado cr\u00edtico ou de aten\u00e7\u00e3o.</td></tr>';
+        estoqueTable.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--muted); padding: 1rem;">Nenhum produto encontrado no estoque.</td></tr>';
         return;
     }
 
@@ -2329,60 +2877,112 @@ function renderEstoqueTable() {
         return `
             <tr class="stock-row ${meta.className}">
                 <td><strong>${escapeHTML(product.name || '-')}</strong></td>
-                <td>${escapeHTML(product.category || '-')}</td>
+                <td><span class="admin-category-pill admin-category-${escapeAttribute(normalizeAdminCategoryKey(product.category))}">${escapeHTML(formatAdminCategoryLabel(product.category))}</span></td>
                 <td>${formatBRL(product.price)}</td>
                 <td><span class="stock-quantity ${meta.className}">${Number(product.stock || 0)}</span></td>
+                <td>${renderStockBySize(product)}</td>
                 <td><span class="stock-severity-badge ${meta.className}">${escapeHTML(meta.label)}</span></td>
             </tr>
         `;
     }).join('');
 }
 
-async function loadEstoqueReport() {
+async function loadEstoqueReport(pageOrOptions = null) {
     const estoqueTable = document.getElementById('estoque-table');
+    const paginationContainer = document.getElementById('estoque-pagination');
     if (!estoqueTable) return;
+
+    if (typeof pageOrOptions === 'number') {
+        _adminStockPage = Math.max(1, pageOrOptions);
+    } else if (pageOrOptions?.resetPage) {
+        _adminStockPage = 1;
+    } else if (pageOrOptions?.page) {
+        _adminStockPage = Math.max(1, Number(pageOrOptions.page) || 1);
+    }
+
     try {
         const auth = getAdminAuthHeader();
-        const response = await API.request('/admin-reports/low-stock?threshold=10', {
+        const sortBy = document.getElementById('admin-stock-sort')?.value || 'severity';
+        const qs = new URLSearchParams({
+            threshold: '10',
+            criticalThreshold: '5',
+            all: '1',
+            page: String(_adminStockPage),
+            limit: String(ADMIN_STOCK_PER_PAGE),
+            sortBy,
+        });
+        estoqueTable.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--muted); padding: 1rem;">Carregando estoque...</td></tr>';
+        if (paginationContainer) paginationContainer.innerHTML = '';
+
+        const response = await API.request(`/admin-reports/low-stock?${qs.toString()}`, {
             method: 'GET',
             headers: auth ? { Authorization: auth } : {},
         });
 
-        _adminLowStockItemsCache = Array.isArray(response.items) ? response.items : [];
+        _adminLowStockItemsCache = await hydrateStockItemsWithSizes(Array.isArray(response.items) ? response.items : []);
         updateStockSummary(response.severity || {}, _adminLowStockItemsCache);
+        _adminStockPage = Number(response.pagination?.page || _adminStockPage);
 
         if (!response.items || response.items.length === 0) {
             renderEstoqueTable();
+            renderAdminPagination('estoque-pagination', response.pagination || {
+                page: _adminStockPage,
+                limit: ADMIN_STOCK_PER_PAGE,
+                total: 0,
+                totalPages: 1,
+            }, loadEstoqueReport);
             return;
         }
 
         renderEstoqueTable();
+        renderAdminPagination('estoque-pagination', response.pagination || {
+            page: _adminStockPage,
+            limit: ADMIN_STOCK_PER_PAGE,
+            total: _adminLowStockItemsCache.length,
+            totalPages: 1,
+        }, loadEstoqueReport);
     } catch (err) {
-        estoqueTable.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger); padding: 1rem;">Erro: ${escapeHTML(err.message)}</td></tr>`;
+        estoqueTable.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--danger); padding: 1rem;">Erro: ${escapeHTML(err.message)}</td></tr>`;
+        if (paginationContainer) paginationContainer.innerHTML = '';
         toast('Erro ao carregar relat\u00f3rio de estoque: ' + err.message, 'error');
     }
 }
 
 async function confirmPixPayment(orderId) {
-    if (!confirm('Confirmar pagamento PIX deste pedido?')) return;
-    try {
-        const auth = getAdminAuthHeader();
-        const response = await fetch(`/api/orders/${orderId}/status`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': auth,
-            },
-            body: JSON.stringify({ status: 'processando' }),
-        });
+    const confirmation = getOrderStatusConfirmationCopy(orderId, 'processando', ORDER_STATUS_META.processando.label);
+    showConfirmModal(
+        confirmation.message,
+        async () => {
+            try {
+                const auth = getAdminAuthHeader();
+                const response = await fetch(`/api/orders/${orderId}/status`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': auth,
+                    },
+                    body: JSON.stringify({ status: 'processando' }),
+                });
 
-        if (!response.ok) throw new Error('Erro ao confirmar');
-        toast('Pagamento confirmado!', 'success');
-        loadOrderNotifications({ silent: true });
-        loadDashboard();
-    } catch (err) {
-        toast('Erro: ' + err.message, 'error');
-    }
+                if (!response.ok) throw new Error('Erro ao confirmar');
+                toast('Pagamento confirmado!', 'success');
+                markAdminTabStale('pedidos');
+                loadOrderNotifications({ silent: true });
+                loadDashboard();
+            } catch (err) {
+                toast('Erro: ' + err.message, 'error');
+            }
+        },
+        {
+            title: confirmation.title,
+            confirmLabel: confirmation.confirmLabel,
+            details: `
+                <div><span>De</span><strong>Aguardando Pagamento</strong></div>
+                <div><span>Para</span><strong>Processando</strong></div>
+                <small>${escapeHTML(confirmation.warning)}</small>
+            `,
+        }
+    );
 }
 
 /* ============================================================
@@ -2436,7 +3036,7 @@ function setupAdminAuditFilters() {
     ['audit-date-from', 'audit-date-to', 'audit-admin-filter', 'audit-action-filter', 'audit-target-filter'].forEach(id => {
         const field = document.getElementById(id);
         if (!field) return;
-        field.addEventListener('change', () => loadAuditLogs());
+        field.addEventListener('change', () => loadAuditLogs({ resetPage: true }));
     });
 
     ['audit-admin-filter', 'audit-target-filter'].forEach(id => {
@@ -2445,7 +3045,7 @@ function setupAdminAuditFilters() {
         field.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
                 event.preventDefault();
-                loadAuditLogs();
+                loadAuditLogs({ resetPage: true });
             }
         });
     });
@@ -2453,7 +3053,6 @@ function setupAdminAuditFilters() {
 
 function getAuditFilters() {
     return {
-        limit: 120,
         dateFrom: document.getElementById('audit-date-from')?.value || '',
         dateTo: document.getElementById('audit-date-to')?.value || '',
         admin: document.getElementById('audit-admin-filter')?.value.trim() || '',
@@ -2467,7 +3066,7 @@ function resetAuditFilters() {
         const field = document.getElementById(id);
         if (field) field.value = '';
     });
-    loadAuditLogs();
+    loadAuditLogs({ resetPage: true });
 }
 
 function formatAuditDetailsJson(details = {}) {
@@ -2479,30 +3078,52 @@ function formatAuditDetailsJson(details = {}) {
     }
 }
 
-async function loadAuditLogs() {
+async function loadAuditLogs(pageOrOptions = null) {
     const tbody = document.querySelector('#audit-logs-table tbody');
+    const paginationContainer = document.getElementById('audit-pagination');
     if (!tbody) return;
 
+    if (typeof pageOrOptions === 'number') {
+        _adminAuditPage = Math.max(1, pageOrOptions);
+    } else if (pageOrOptions?.resetPage) {
+        _adminAuditPage = 1;
+    } else if (pageOrOptions?.page) {
+        _adminAuditPage = Math.max(1, Number(pageOrOptions.page) || 1);
+    }
+
     if (!isSuperAdminLogged()) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--danger);">Acesso restrito ao superadmin.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color: var(--danger);">Acesso restrito ao superadmin.</td></tr>';
+        if (paginationContainer) paginationContainer.innerHTML = '';
         return;
     }
 
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--muted);">Carregando auditoria...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color: var(--muted);">Carregando auditoria...</td></tr>';
+    if (paginationContainer) paginationContainer.innerHTML = '';
 
     try {
-        const response = await API.listAuditLogs(getAdminAuthHeader(), getAuditFilters());
+        const response = await API.listAuditLogs(getAdminAuthHeader(), {
+            ...getAuditFilters(),
+            limit: ADMIN_AUDIT_PER_PAGE,
+            offset: (_adminAuditPage - 1) * ADMIN_AUDIT_PER_PAGE,
+        });
         const logs = response.items || [];
+        const pagination = response.pagination || {
+            page: _adminAuditPage,
+            limit: ADMIN_AUDIT_PER_PAGE,
+            total: logs.length,
+            totalPages: 1,
+        };
 
         if (logs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--muted);">Nenhum registro encontrado para os filtros atuais.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color: var(--muted);">Nenhum registro encontrado para os filtros atuais.</td></tr>';
+            renderAdminPagination('audit-pagination', pagination, loadAuditLogs);
             return;
         }
 
+        _adminAuditPage = Number(pagination.page || _adminAuditPage);
+
         tbody.innerHTML = logs.map(log => {
-            const created = log.created_at
-                ? new Date(log.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
-                : '-';
+            const created = formatAdminDateTime(log.created_at);
             const admin = log.admin_name || log.admin_email || 'Admin';
             const target = `${log.entity_type || '-'}${log.entity_id ? ` #${log.entity_id}` : ''}`;
             const details = summarizeAuditDetails(log.details);
@@ -2510,13 +3131,15 @@ async function loadAuditLogs() {
 
             return `
                 <tr>
-                    <td>${created}</td>
                     <td>
                         <strong>${escapeHTML(admin)}</strong>
+                        <div class="admin-table-muted-line">${escapeHTML(created)}</div>
                         ${log.admin_email ? `<div style="color: var(--muted); font-size: 0.8rem;">${escapeHTML(log.admin_email)}</div>` : ''}
                     </td>
-                    <td>${escapeHTML(formatAuditAction(log.action))}</td>
-                    <td>${escapeHTML(target)}</td>
+                    <td>
+                        <strong>${escapeHTML(formatAuditAction(log.action))}</strong>
+                        <div class="admin-table-muted-line">${escapeHTML(target)}</div>
+                    </td>
                     <td>
                         <details class="audit-details">
                             <summary>${escapeHTML(details)}</summary>
@@ -2526,8 +3149,11 @@ async function loadAuditLogs() {
                 </tr>
             `;
         }).join('');
+
+        renderAdminPagination('audit-pagination', pagination, loadAuditLogs);
     } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--danger);">Erro: ${escapeHTML(err.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color: var(--danger);">Erro: ${escapeHTML(err.message)}</td></tr>`;
+        if (paginationContainer) paginationContainer.innerHTML = '';
         toast('Erro ao carregar auditoria: ' + err.message, 'error');
     }
 }
@@ -2560,20 +3186,41 @@ async function loadAdmins() {
             return;
         }
 
-        tbody.innerHTML = adminUsers.map(admin => `
+        const loggedAdminId = Number(getLoggedAdminId());
+        tbody.innerHTML = adminUsers.map(admin => {
+            const adminId = Number(admin.id) || 0;
+            const isCurrentAdmin = adminId === loggedAdminId;
+            return `
             <tr>
-                <td>${escapeHTML(admin.name || '-')}${admin.is_super_admin ? '<div style="color: var(--accent-text); font-size: 0.78rem; font-weight: 800; margin-top: 0.2rem;">Superadmin</div>' : ''}</td>
+                <td>
+                    ${escapeHTML(admin.name || '-')}
+                    <div class="admin-access-summary">
+                        <span class="${admin.is_super_admin ? 'is-superadmin' : ''}">${admin.is_super_admin ? 'Superadmin' : 'Administrador'}</span>
+                        ${isCurrentAdmin ? '<span class="is-current-admin">Você</span>' : ''}
+                    </div>
+                </td>
                 <td>${escapeHTML(admin.email || '-')}</td>
-                <td>${new Date(admin.created_at).toLocaleDateString('pt-BR')}</td>
+                <td>${formatAdminDate(admin.created_at)}</td>
                 <td class="actions-col">
-                    ${admin.is_super_admin ? '<span style="color: var(--muted); font-size: 0.9rem;">Protegido</span>' : admin.id !== getLoggedAdminId() ? `
-                        <button class="btn-icon btn-delete admin-remove-btn" type="button" data-admin-id="${Number(admin.id) || 0}" data-admin-name="${escapeAttribute(admin.name || '')}">Remover</button>
-                    ` : '<span style="color: var(--muted); font-size: 0.9rem;">(voc\u00ea)</span>'}
+                    <button class="btn-icon btn-edit admin-edit-btn" type="button" data-admin-id="${adminId}">Editar</button>
+                    ${!admin.is_super_admin && !isCurrentAdmin ? `
+                        <button class="btn-icon btn-delete admin-remove-btn" type="button" data-admin-id="${adminId}">Remover</button>
+                    ` : ''}
                 </td>
             </tr>
-        `).join('');
+        `;
+        }).join('');
+        tbody.querySelectorAll('.admin-edit-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                const admin = adminUsers.find(item => Number(item.id) === Number(button.dataset.adminId));
+                if (admin) openAdminEditForm(admin);
+            });
+        });
         tbody.querySelectorAll('.admin-remove-btn').forEach(button => {
-            button.addEventListener('click', () => removeAdmin(Number(button.dataset.adminId), button.dataset.adminName || ''));
+            button.addEventListener('click', () => {
+                const admin = adminUsers.find(item => Number(item.id) === Number(button.dataset.adminId));
+                if (admin) removeAdmin(admin);
+            });
         });
     } catch (err) {
         tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color: var(--danger);">Erro: ${escapeHTML(err.message)}</td></tr>`;
@@ -2585,8 +3232,101 @@ function getLoggedAdminId() {
     return getLoggedAdminUser()?.id || null;
 }
 
+function setAdminFormVisible(visible) {
+    const card = document.getElementById('admin-editor-card');
+    const backdrop = document.getElementById('admin-form-backdrop');
+    if (!card) return;
+
+    if (visible && !isSuperAdminLogged()) {
+        toast('Somente o superadmin pode adicionar administradores', 'warning');
+        return;
+    }
+
+    card.classList.toggle('is-visible', Boolean(visible));
+    card.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    backdrop?.classList.toggle('is-visible', Boolean(visible));
+
+    if (visible) {
+        document.body?.classList.add('admin-drawer-open');
+    } else if (!document.querySelector('.admin-products-form-card.is-visible, .admin-coupon-drawer.is-visible, .admin-admin-drawer.is-visible')) {
+        document.body?.classList.remove('admin-drawer-open');
+    }
+}
+
+function openAdminCreateForm() {
+    if (!isSuperAdminLogged()) {
+        toast('Somente o superadmin pode adicionar administradores', 'error');
+        return;
+    }
+    resetAdminForm();
+    setAdminFormVisible(true);
+    setTimeout(() => document.getElementById('a-name')?.focus(), 60);
+}
+
+function openAdminEditForm(admin) {
+    if (!isSuperAdminLogged()) {
+        toast('Somente o superadmin pode editar administradores', 'error');
+        return;
+    }
+
+    resetAdminForm();
+
+    const adminId = Number(admin?.id);
+    if (!adminId) {
+        toast('Administrador inválido', 'error');
+        return;
+    }
+
+    document.getElementById('a-id').value = String(adminId);
+    document.getElementById('a-name').value = admin.name || '';
+    document.getElementById('a-email').value = admin.email || '';
+    document.getElementById('a-role').value = admin.is_super_admin ? 'superadmin' : 'admin';
+
+    const editingOwnAccount = adminId === Number(getLoggedAdminId());
+    const roleInput = document.getElementById('a-role');
+    roleInput.disabled = editingOwnAccount;
+    roleInput.title = editingOwnAccount
+        ? 'Seu próprio acesso deve permanecer como superadmin.'
+        : '';
+
+    document.getElementById('admin-editor-title').textContent = 'Editar administrador';
+    document.getElementById('admin-form-submit').textContent = 'Salvar alterações';
+    document.getElementById('a-password-label').textContent = 'Nova senha';
+    document.getElementById('a-password-confirm-label').textContent = 'Confirmar nova senha';
+    document.getElementById('a-password-help').classList.remove('is-hidden');
+
+    const passwordInput = document.getElementById('a-password');
+    const passwordConfirmInput = document.getElementById('a-password-confirm');
+    passwordInput.required = false;
+    passwordConfirmInput.required = false;
+
+    setAdminFormVisible(true);
+    setTimeout(() => document.getElementById('a-name')?.focus(), 60);
+}
+
+function closeAdminForm() {
+    resetAdminForm();
+    setAdminFormVisible(false);
+}
+
 function resetAdminForm() {
-    document.getElementById('admin-form').reset();
+    const form = document.getElementById('admin-form');
+    if (!form) return;
+
+    form.reset();
+    document.getElementById('a-id').value = '';
+    document.getElementById('a-role').disabled = false;
+    document.getElementById('a-role').title = '';
+    document.getElementById('admin-editor-title').textContent = 'Novo administrador';
+    document.getElementById('admin-form-submit').textContent = 'Adicionar Admin';
+    document.getElementById('a-password-label').textContent = 'Senha';
+    document.getElementById('a-password-confirm-label').textContent = 'Confirmar senha';
+    document.getElementById('a-password-help').classList.add('is-hidden');
+
+    const passwordInput = document.getElementById('a-password');
+    const passwordConfirmInput = document.getElementById('a-password-confirm');
+    passwordInput.required = true;
+    passwordConfirmInput.required = true;
     setAdminFormAlert('');
 }
 
@@ -2609,13 +3349,15 @@ async function createAdmin(e) {
         return;
     }
 
-    const name = document.getElementById('a-name').value;
-    const email = document.getElementById('a-email').value;
+    const adminId = Number(document.getElementById('a-id').value) || null;
+    const isEditing = Boolean(adminId);
+    const name = document.getElementById('a-name').value.trim();
+    const email = document.getElementById('a-email').value.trim().toLowerCase();
     const role = document.getElementById('a-role')?.value || 'admin';
     const password = document.getElementById('a-password').value;
     const passwordConfirm = document.getElementById('a-password-confirm').value;
 
-    if (password !== passwordConfirm) {
+    if ((password || passwordConfirm) && password !== passwordConfirm) {
         setAdminFormAlert('As senhas não correspondem');
         return;
     }
@@ -2630,36 +3372,86 @@ async function createAdmin(e) {
         return;
     }
 
-    const passwordError = getStrongPasswordError(password);
-    if (passwordError) {
-        setAdminFormAlert(passwordError);
-        return;
+    if (!isEditing || password) {
+        const passwordError = getStrongPasswordError(password);
+        if (passwordError) {
+            setAdminFormAlert(passwordError);
+            return;
+        }
     }
 
     const auth = getAdminAuthHeader();
+    const body = {
+        name,
+        email,
+        role,
+        isSuperAdmin: role === 'superadmin',
+    };
+    if (password) body.password = password;
 
     try {
-        await API.request('/admin/users', {
-            method: 'POST',
+        const response = await API.request(isEditing ? `/admin/users/${adminId}` : '/admin/users', {
+            method: isEditing ? 'PUT' : 'POST',
             headers: auth ? { Authorization: auth } : {},
-            body: { name, email, password, role, isSuperAdmin: role === 'superadmin' },
+            body,
         });
-        toast(role === 'superadmin' ? 'Superadmin adicionado com sucesso!' : 'Administrador adicionado com sucesso!', 'success');
-        resetAdminForm();
+
+        if (isEditing && adminId === Number(getLoggedAdminId()) && response.user) {
+            setVerifiedAdminUser(response.user);
+            document.querySelector('.admin-menu-container')?.remove();
+            if (typeof updateAdminName === 'function') updateAdminName();
+            applySuperAdminUi();
+        }
+
+        toast(
+            response.message || (
+                isEditing
+                    ? 'Administrador atualizado com sucesso!'
+                    : role === 'superadmin'
+                        ? 'Superadmin adicionado com sucesso!'
+                        : 'Administrador adicionado com sucesso!'
+            ),
+            'success'
+        );
+        closeAdminForm();
         loadAdmins();
     } catch (err) {
-        setAdminFormAlert('Erro: ' + err.message);
+        setAdminFormAlert(err.message || 'Nao foi possivel salvar o administrador');
     }
 }
 
-async function removeAdmin(adminId, adminName) {
+async function removeAdmin(admin) {
     if (!isSuperAdminLogged()) {
         toast('Somente o superadmin pode remover administradores', 'error');
         return;
     }
 
-    if (!confirm(`Remover administrador "${adminName}"?`)) return;
+    const adminId = Number(admin?.id);
+    if (!adminId) {
+        toast('Administrador inválido', 'error');
+        return;
+    }
 
+    const adminName = admin.name || 'Administrador';
+    const accessType = admin.is_super_admin ? 'Superadmin' : 'Administrador';
+    showConfirmModal(
+        `Tem certeza que deseja remover ${escapeHTML(adminName)} do painel administrativo?`,
+        () => confirmRemoveAdmin(adminId),
+        {
+            title: 'Remover administrador',
+            confirmLabel: 'Remover acesso',
+            danger: true,
+            details: `
+                <div><span>Nome</span><strong>${escapeHTML(adminName)}</strong></div>
+                <div><span>E-mail</span><strong>${escapeHTML(admin.email || '-')}</strong></div>
+                <div><span>Acesso</span><strong>${escapeHTML(accessType)}</strong></div>
+                <div><span>Cadastrado em</span><strong>${escapeHTML(formatAdminDate(admin.created_at))}</strong></div>
+            `,
+        }
+    );
+}
+
+async function confirmRemoveAdmin(adminId) {
     const auth = getAdminAuthHeader();
     try {
         await API.request(`/admin/users/${adminId}`, {
@@ -2720,58 +3512,264 @@ async function removeAdmin(adminId, adminName) {
 })();
 
 // Funções da galeria de imagens
+function getMainProductImageValue() {
+    return document.getElementById('p-image')?.value.trim() || '';
+}
+
+function setMainProductImageValue(imageUrl) {
+    const input = document.getElementById('p-image');
+    if (input) input.value = String(imageUrl || '').trim();
+}
+
+function getGalleryImageTotal(images = _currentGalleryImages) {
+    const mainImageCount = getMainProductImageValue() ? 1 : 0;
+    return mainImageCount + (Array.isArray(images) ? images.length : 0);
+}
+
+function getRemainingGallerySlots(images = _currentGalleryImages) {
+    return Math.max(0, MAX_PRODUCT_IMAGES - getGalleryImageTotal(images));
+}
+
+function getGallerySummaryText(images = _currentGalleryImages) {
+    const mainImageCount = getMainProductImageValue() ? 1 : 0;
+    const extraCount = Array.isArray(images) ? images.length : 0;
+    const total = mainImageCount + extraCount;
+    return `${total}/${MAX_PRODUCT_IMAGES} imagens no total (${mainImageCount ? '1 principal' : 'sem principal'} + ${extraCount} extra${extraCount === 1 ? '' : 's'})`;
+}
+
+function setGalleryInputsDisabled(disabled) {
+    const galleryUrl = document.getElementById('gallery-new-url');
+    const galleryFile = document.getElementById('gallery-new-file');
+    const addUrlButton = document.querySelector('button[onclick="addGalleryImage()"]');
+    const addFileButton = document.querySelector('button[onclick="addGalleryImageFromFile()"]');
+    const addUnifiedButton = document.querySelector('button[onclick="addProductPhotoFromCurrentInput()"]');
+    const galleryFileLabel = document.querySelector('label[for="gallery-new-file"]');
+
+    if (galleryUrl) galleryUrl.disabled = disabled;
+    if (galleryFile) galleryFile.disabled = disabled;
+    if (addUrlButton) addUrlButton.disabled = disabled;
+    if (addFileButton) addFileButton.disabled = disabled;
+    if (addUnifiedButton) addUnifiedButton.disabled = disabled;
+    if (galleryFileLabel) {
+        galleryFileLabel.classList.toggle('is-disabled', disabled);
+        galleryFileLabel.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    }
+}
+
+function clearPhotoPicker() {
+    const galleryUrl = document.getElementById('gallery-new-url');
+    const galleryFile = document.getElementById('gallery-new-file');
+    if (galleryUrl) galleryUrl.value = '';
+    if (galleryFile) galleryFile.value = '';
+    updateSelectedFileLabel('gallery-new-file', 'gallery-file-count');
+}
+
+async function readGalleryApiResponse(response) {
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(data.error || `Erro ${response.status}`);
+    }
+    return data;
+}
+
+async function postGalleryImage(productId, imageUrl) {
+    const auth = getAdminAuthHeader();
+    const response = await fetch(`/api/products/${productId}/images`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(auth && { 'Authorization': auth })
+        },
+        body: JSON.stringify({ image_url: imageUrl })
+    });
+    return readGalleryApiResponse(response);
+}
+
+async function savePendingGalleryImages(productId, pendingImages) {
+    const urls = (pendingImages || [])
+        .map(img => String(img.image_url || '').trim())
+        .filter(Boolean);
+
+    for (const url of urls) {
+        await postGalleryImage(productId, url);
+    }
+}
+
 async function loadGalleryImages(productId) {
     window._editingProductId = productId;
     try {
         const response = await fetch(`/api/products/${productId}/images`);
         if (!response.ok) throw new Error(`Erro ${response.status}`);
         const images = await response.json();
+        _currentGalleryImages = Array.isArray(images) ? images : [];
         renderGalleryImages(images);
     } catch (err) {
         console.error('Erro ao carregar galeria:', err);
-        toast('Erro ao carregar galeria: ' + err.message, 'error');
+        setProductFormAlert('Erro ao carregar galeria: ' + err.message);
+        setUploadStatus('gallery-upload-status', 'Erro ao carregar galeria: ' + err.message, 'error');
     }
 }
 
 function renderGalleryImages(images) {
     const list = document.getElementById('gallery-images-list');
-    if (!images || !images.length) {
-        list.innerHTML = '<span style="color:var(--muted);font-size:0.85rem;">Nenhuma foto na galeria.</span>';
+    if (!list) return;
+
+    _currentGalleryImages = Array.isArray(images) ? images : [];
+    const mainImageUrl = getMainProductImageValue();
+    const remaining = getRemainingGallerySlots(_currentGalleryImages);
+    const summary = `
+        <div class="admin-gallery-summary">
+            <strong>${escapeHTML(getGallerySummaryText(_currentGalleryImages))}</strong>
+            <span>${remaining > 0 ? `Ainda cabe${remaining === 1 ? '' : 'm'} ${remaining} foto${remaining === 1 ? '' : 's'}.` : 'Limite de 4 imagens atingido.'}</span>
+        </div>
+    `;
+
+    setGalleryInputsDisabled(remaining <= 0);
+
+    const cards = [];
+    if (mainImageUrl) {
+        const imageUrl = safeImageSrc(mainImageUrl, 'https://via.placeholder.com/120');
+        cards.push(`
+        <div class="admin-gallery-thumb">
+            <span class="admin-gallery-thumb-badge">Principal</span>
+            <img src="${escapeAttribute(imageUrl)}" loading="lazy" decoding="async" alt="Foto principal" />
+            <button type="button" onclick="removeMainProductImage()" aria-label="Remover imagem principal">X</button>
+        </div>
+    `);
+    }
+
+    _currentGalleryImages.forEach((img, index) => {
+        const imageUrl = safeImageSrc(img.image_url, 'https://via.placeholder.com/120');
+        const removeAction = img._pending
+            ? `removePendingGalleryImage(${index})`
+            : `removeGalleryImage(${Number(img.id) || 0})`;
+        cards.push(`
+        <div class="admin-gallery-thumb">
+            <span class="admin-gallery-thumb-badge">Extra</span>
+            <img src="${escapeAttribute(imageUrl)}" loading="lazy" decoding="async" alt="Foto extra ${index + 1}" />
+            <button type="button" onclick="${removeAction}" aria-label="Remover imagem">X</button>
+        </div>
+    `);
+    });
+
+    if (!cards.length) {
+        list.innerHTML = summary + '<span class="admin-gallery-empty">Nenhuma foto adicionada ainda.</span>';
         return;
     }
-    list.innerHTML = images.map(img => `
-        <div style="position:relative;">
-            <img src="${escapeAttribute(safeImageSrc(img.image_url, 'https://via.placeholder.com/80'))}" loading="lazy" decoding="async" style="width:80px;height:80px;object-fit:cover;border-radius:6px;" />
-            <button type="button" onclick="removeGalleryImage(${Number(img.id) || 0})"
-                style="position:absolute;top:-6px;right:-6px;background:var(--danger);color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;font-weight:bold;" aria-label="Remover imagem">X</button>
-        </div>
-    `).join('');
+
+    list.innerHTML = summary + cards.join('');
+}
+
+async function addProductPhotoFromCurrentInput() {
+    const input = document.getElementById('gallery-new-file');
+    if (input?.files?.length) {
+        await addGalleryImageFromFile();
+        return;
+    }
+
+    await addGalleryImage();
 }
 
 async function addGalleryImage() {
     const url = document.getElementById('gallery-new-url').value.trim();
     if (!url) {
-        toast('Digite a URL da imagem', 'warning');
+        setUploadStatus('gallery-upload-status', 'Digite a URL da imagem ou escolha uma foto do PC.', 'error');
         return;
     }
+    if (getRemainingGallerySlots() <= 0) {
+        setUploadStatus('gallery-upload-status', `Limite de ${MAX_PRODUCT_IMAGES} imagens por produto atingido.`, 'error');
+        return;
+    }
+
     try {
-        const auth = getAdminAuthHeader();
-        const response = await fetch(`/api/products/${window._editingProductId}/images`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...(auth && { 'Authorization': auth })
-            },
-            body: JSON.stringify({ image_url: url })
-        });
-        if (!response.ok) throw new Error(`Erro ${response.status}`);
-        document.getElementById('gallery-new-url').value = '';
+        if (!getMainProductImageValue()) {
+            setMainProductImageValue(url);
+            clearPhotoPicker();
+            renderGalleryImages(_currentGalleryImages);
+            setUploadStatus('gallery-upload-status', 'Foto principal adicionada. Adicione outra foto se quiser.', 'success');
+            return;
+        }
+
+        if (!window._editingProductId) {
+            _currentGalleryImages.push({ image_url: url, _pending: true });
+            renderGalleryImages(_currentGalleryImages);
+            clearPhotoPicker();
+            setUploadStatus('gallery-upload-status', 'Foto adicionada. Ela sera salva junto com o produto.', 'success');
+            return;
+        }
+
+        await postGalleryImage(window._editingProductId, url);
+        clearPhotoPicker();
         loadGalleryImages(window._editingProductId);
-        toast('Foto adicionada!', 'success');
+        setUploadStatus('gallery-upload-status', 'Foto adicionada na galeria.', 'success');
     } catch (err) {
         console.error('Erro ao adicionar foto:', err);
-        toast('Erro ao adicionar foto: ' + err.message, 'error');
+        setUploadStatus('gallery-upload-status', 'Erro ao adicionar foto: ' + err.message, 'error');
     }
+}
+
+async function addGalleryImageFromFile() {
+    const input = document.getElementById('gallery-new-file');
+    const files = Array.from(input?.files || []);
+    if (!files.length) {
+        setUploadStatus('gallery-upload-status', 'Escolha uma foto do PC.', 'error');
+        return;
+    }
+
+    const remaining = getRemainingGallerySlots();
+    if (remaining <= 0) {
+        setUploadStatus('gallery-upload-status', `Limite de ${MAX_PRODUCT_IMAGES} imagens por produto atingido.`, 'error');
+        if (input) input.value = '';
+        updateSelectedFileLabel('gallery-new-file', 'gallery-file-count');
+        return;
+    }
+    if (files.length > remaining) {
+        setUploadStatus('gallery-upload-status', `Você ainda pode adicionar no máximo ${remaining} foto${remaining === 1 ? '' : 's'}.`, 'error');
+        if (input) input.value = '';
+        updateSelectedFileLabel('gallery-new-file', 'gallery-file-count');
+        return;
+    }
+
+    try {
+        setUploadStatus('gallery-upload-status', `Enviando ${files.length} foto${files.length === 1 ? '' : 's'} da galeria...`, 'muted');
+
+        for (const file of files) {
+            const uploaded = await uploadLocalProductImage(file);
+            const imageUrl = uploaded.image_url || uploaded.url;
+
+            if (!getMainProductImageValue()) {
+                setMainProductImageValue(imageUrl);
+                renderGalleryImages(_currentGalleryImages);
+            } else if (!window._editingProductId) {
+                _currentGalleryImages.push({ image_url: imageUrl, _pending: true });
+                renderGalleryImages(_currentGalleryImages);
+            } else {
+                await postGalleryImage(window._editingProductId, imageUrl);
+            }
+        }
+
+        clearPhotoPicker();
+        if (window._editingProductId) {
+            loadGalleryImages(window._editingProductId);
+        }
+        setUploadStatus('gallery-upload-status', `${files.length} foto${files.length === 1 ? '' : 's'} adicionada${files.length === 1 ? '' : 's'} na galeria.`, 'success');
+    } catch (err) {
+        console.error('Erro ao adicionar foto local:', err);
+        setUploadStatus('gallery-upload-status', err.message, 'error');
+        updateSelectedFileLabel('gallery-new-file', 'gallery-file-count');
+    }
+}
+
+function removePendingGalleryImage(index) {
+    _currentGalleryImages.splice(index, 1);
+    renderGalleryImages(_currentGalleryImages);
+    setUploadStatus('gallery-upload-status', 'Foto removida da lista antes de salvar.', 'success');
+}
+
+function removeMainProductImage() {
+    setMainProductImageValue('');
+    renderGalleryImages(_currentGalleryImages);
+    setUploadStatus('gallery-upload-status', 'Foto principal removida. A pr\u00f3xima foto adicionada vira principal.', 'success');
 }
 
 async function removeGalleryImage(imageId) {

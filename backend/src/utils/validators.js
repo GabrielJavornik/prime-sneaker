@@ -115,6 +115,12 @@ const validators = {
         return typeof brand === 'string' && brand.trim().length <= 80;
     },
 
+    isValidModelGroup(modelGroup) {
+        return modelGroup === undefined
+            || modelGroup === null
+            || (typeof modelGroup === 'string' && modelGroup.trim().length <= 120);
+    },
+
     isValidGender(gender) {
         const validGenders = ['masculino', 'feminino', 'infantil', 'unissex'];
         return validGenders.includes(String(gender || '').toLowerCase());

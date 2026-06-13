@@ -33,16 +33,54 @@ router.post('/newsletter', async (req, res, next) => {
             });
         }
 
-        const normalizedEmail = email.toLowerCase();
+        const normalizedEmail = email.trim().toLowerCase();
 
-        await db.query(
-            `INSERT INTO newsletter_subscribers (email, active)
-             VALUES ($1, TRUE)
-             ON CONFLICT (email) DO UPDATE SET active = TRUE`,
+        const existing = await db.query(
+            `SELECT id, active
+             FROM newsletter_subscribers
+             WHERE email = $1`,
             [normalizedEmail]
         );
 
+        if (existing.rows[0]?.active) {
+            return res.status(200).json({
+                status: 'already_subscribed',
+                message: 'Inscricao ja feita. Voce ja recebera os emails das promocoes.',
+            });
+        }
+
+        if (existing.rows[0]) {
+            await db.query(
+                `UPDATE newsletter_subscribers
+                 SET active = TRUE
+                 WHERE email = $1`,
+                [normalizedEmail]
+            );
+
+            return res.status(200).json({
+                status: 'reactivated',
+                message: 'Inscricao reativada. Voce recebera os emails das promocoes.',
+            });
+        }
+
+        try {
+            await db.query(
+                `INSERT INTO newsletter_subscribers (email, active)
+                 VALUES ($1, TRUE)`,
+                [normalizedEmail]
+            );
+        } catch (err) {
+            if (err.code === '23505') {
+                return res.status(200).json({
+                    status: 'already_subscribed',
+                    message: 'Inscricao ja feita. Voce ja recebera os emails das promocoes.',
+                });
+            }
+            throw err;
+        }
+
         res.status(200).json({
+            status: 'subscribed',
             message: 'Inscricao realizada com sucesso! Verifique seu email.',
         });
 

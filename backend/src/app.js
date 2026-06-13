@@ -135,7 +135,7 @@ function securityHeaders(req, res, next) {
 // Middlewares globais
 app.use(securityHeaders);
 app.use(cors(corsOptions()));
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '8mb' }));
 
 // Log simples de requisicoes
 app.use((req, res, next) => {
@@ -149,7 +149,21 @@ if (shouldExposeApiDocs()) {
 }
 
 // Frontend estatico (serve os arquivos da pasta frontend na raiz)
+const uploadsPath = path.join(__dirname, '..', 'uploads');
+app.use('/uploads', express.static(uploadsPath));
+
 const frontendPath = path.join(__dirname, '..', '..', 'frontend');
+
+function sendFrontendPage(res, fileName) {
+    return res.sendFile(path.join(frontendPath, fileName));
+}
+
+app.get(['/admin', '/admin/'], (req, res) => {
+    res.redirect(302, '/admin-login.html');
+});
+app.get(['/busca', '/busca/'], (req, res) => sendFrontendPage(res, 'search.html'));
+app.get(['/carrinho', '/carrinho/'], (req, res) => sendFrontendPage(res, 'cart.html'));
+app.get(['/p/:slug/:id', '/p/:id'], (req, res) => sendFrontendPage(res, 'product.html'));
 app.use(express.static(frontendPath));
 
 // Rotas da API (prefixo /api)

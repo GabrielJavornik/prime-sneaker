@@ -16,6 +16,46 @@
     }
 })();
 
+(async function loadHomeCategoryCards() {
+    const cards = Array.from(document.querySelectorAll('[data-category-card]'));
+    if (!cards.length) return;
+
+    await Promise.all(cards.map(async card => {
+        const category = card.dataset.categoryCard;
+        if (!category) return;
+
+        try {
+            const result = await API.search({
+                categoria: category,
+                limit: 12,
+                sortBy: 'recent',
+            });
+            const product = (result?.items || []).find(item =>
+                String(item?.gender || 'unissex').toLowerCase() !== 'infantil'
+            );
+            const imageUrl = safeImageSrc(product?.image_url, '');
+            if (!imageUrl) return;
+
+            setCategoryCardImage(card, imageUrl);
+            card.classList.add('has-product-image');
+        } catch (err) {
+            console.warn(`Nao foi possivel carregar imagem da categoria ${category}:`, err.message);
+        }
+    }));
+})();
+
+function setCategoryCardImage(card, imageUrl) {
+    const safeCssUrl = String(imageUrl)
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/[\n\r\f]/g, '');
+
+    card.style.backgroundImage = `
+        linear-gradient(180deg, rgba(0, 0, 0, 0.04) 0%, rgba(0, 0, 0, 0.42) 48%, rgba(0, 0, 0, 0.84) 100%),
+        url("${safeCssUrl}")
+    `;
+}
+
 async function updateFavoriteButtons(products) {
     const user = getLoggedUser();
     if (!user) return;
@@ -39,10 +79,8 @@ function renderCard(p) {
     const name = escapeHTML(p.name || 'Produto');
     const nameAttr = escapeAttribute(p.name || 'Produto');
     const category = escapeHTML(p.category || 'T\u00eanis');
-    const rating = 4.5;
-    const reviews = Math.floor(Math.random() * 100) + 30;
     return `
-    <a href="product.html?id=${productId}" class="product-card">
+    <a href="${buildProductUrl(p)}" class="product-card">
       <div class="product-card-media">
         <img src="${escapeAttribute(img)}" alt="${nameAttr}" loading="lazy" decoding="async" onerror="this.src='https://via.placeholder.com/300x280?text=Sem+Imagem'">
         ${renderOutletBadge(p)}
@@ -50,10 +88,10 @@ function renderCard(p) {
       <div class="info">
         <div class="category">${category}</div>
         <h3>${name}</h3>
-        <div class="rating">⭐⭐⭐⭐⭐ (${reviews} avaliações)</div>
+        ${renderProductReviewSummary(p)}
         <div class="price">${renderProductPrice(p)}</div>
         <div class="btn-container">
-          <button class="btn" onclick="event.stopPropagation(); window.location.href='product.html?id=${productId}'">Compre Agora</button>
+          <button class="btn" onclick="event.stopPropagation(); window.location.href='${buildProductUrl(p)}'">Compre Agora</button>
           <button class="btn-favorite" onclick="toggleWishlist(${productId}, this); return false;">♡</button>
         </div>
       </div>

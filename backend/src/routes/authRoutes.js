@@ -76,7 +76,11 @@ router.post('/login', AuthController.login);
 router.get('/me', verifyToken, AuthController.me);
 
 router.post('/forgot-password', AuthController.forgotPassword);
+router.post('/admin/forgot-password', AuthController.forgotAdminPassword);
 router.get('/verify-reset-token/:token', AuthController.verifyResetToken);
+router.get('/admin/verify-reset-token', AuthController.verifyAdminResetToken);
+router.get('/admin/verify-reset-token/:token', AuthController.verifyAdminResetToken);
 router.post('/reset-password', AuthController.resetPassword);
+router.post('/admin/reset-password', AuthController.resetAdminPassword);
 
 module.exports = router;

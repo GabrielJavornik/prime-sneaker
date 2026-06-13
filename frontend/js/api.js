@@ -28,7 +28,7 @@ const API = {
 
     // Produtos
     getTopProducts: (n = 4) => API.request(`/products/top?n=${n}`),
-    getProductFacets: () => API.request('/products/facets'),
+    getProductFacets: () => API.request(`/products/facets?refresh=1&ts=${Date.now()}`),
     getProduct: (id) => API.request(`/product/${id}`),
     search: (params) => {
         const qs = new URLSearchParams();
@@ -55,6 +55,9 @@ const API = {
     }),
     deleteProduct: (id, auth) => API.request(`/product/${id}`, {
         method: 'DELETE', headers: auth ? { Authorization: auth } : {},
+    }),
+    uploadProductImage: (data, auth) => API.request('/products/images/upload', {
+        method: 'POST', body: data, headers: auth ? { Authorization: auth } : {},
     }),
 
     // Cupons
@@ -96,6 +99,16 @@ const API = {
     },
 
     // Carrinho
+    getCart: () => API.request('/cart'),
+    upsertCartItem: (item) => API.request('/cart/items', {
+        method: 'PUT',
+        body: item,
+    }),
+    removeCartItem: (productId, size = null) => {
+        const qs = size ? `?size=${encodeURIComponent(size)}` : '';
+        return API.request(`/cart/items/${productId}${qs}`, { method: 'DELETE' });
+    },
+    clearCart: () => API.request('/cart', { method: 'DELETE' }),
     checkout: (items, coupon) => API.request('/cart', {
         method: 'POST',
         body: { items, coupon },
@@ -116,17 +129,27 @@ const API = {
    Toast
    ============================================================ */
 function toast(message, type = 'info', timeout = 3000) {
-    let container = document.getElementById('toast-container');
+    if (typeof Notifications !== 'undefined') {
+        const safeType = ['success', 'error', 'warning', 'info'].includes(type) ? type : 'info';
+        Notifications[safeType](message, timeout);
+        return;
+    }
+
+    const host = document.querySelector('main') || document.body;
+    let container = document.getElementById('site-feedback');
     if (!container) {
         container = document.createElement('div');
-        container.id = 'toast-container';
-        document.body.appendChild(container);
+        container.id = 'site-feedback';
+        container.className = 'site-feedback is-visible';
+        host.prepend(container);
     }
-    const el = document.createElement('div');
-    el.className = `toast ${type}`;
-    el.textContent = message;
-    container.appendChild(el);
-    setTimeout(() => el.remove(), timeout);
+    container.textContent = String(message || '');
+    if (timeout > 0) {
+        setTimeout(() => {
+            container.textContent = '';
+            container.classList.remove('is-visible');
+        }, timeout);
+    }
 }
 
 /* ============================================================

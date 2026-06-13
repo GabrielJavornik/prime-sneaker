@@ -7,6 +7,15 @@ const validators = require('../utils/validators');
 const { JWT_SECRET } = require('../middlewares/authMiddleware');
 require('dotenv').config();
 
+function isAdminAccount(user) {
+    return Boolean(user && (user.is_admin === true || user.is_super_admin === true));
+}
+
+function normalizeResetToken(token) {
+    const normalized = String(token || '').trim().replace(/\s/g, '');
+    return /^[a-f0-9]{64}$/i.test(normalized) ? normalized : '';
+}
+
 const AuthController = {
     async register(req, res, next) {
         try {
@@ -178,6 +187,34 @@ const AuthController = {
         }
     },
 
+    async forgotAdminPassword(req, res, next) {
+        try {
+            const { email } = req.body;
+
+            if (!email || !validators.isValidEmail(email)) {
+                return res.status(400).json({
+                    error: 'Email invalido',
+                    status: 400,
+                });
+            }
+
+            const normalizedEmail = email.toLowerCase();
+            const user = await UserModel.findByEmail(normalizedEmail);
+
+            if (isAdminAccount(user)) {
+                const resetToken = crypto.randomBytes(32).toString('hex');
+                await UserModel.setResetToken(normalizedEmail, resetToken, 3600000);
+                emailService.sendAdminPasswordResetEmail(user, resetToken).catch(() => {});
+            }
+
+            res.status(200).json({
+                message: 'Se este email for de administrador, enviaremos um link de recuperacao.',
+            });
+        } catch (err) {
+            next(err);
+        }
+    },
+
     async verifyResetToken(req, res, next) {
         try {
             const { token } = req.params;
@@ -190,6 +227,34 @@ const AuthController = {
             }
 
             const user = await UserModel.findByResetToken(token);
+            if (!user) {
+                return res.status(400).json({
+                    error: 'Token invalido ou expirado',
+                    status: 400,
+                });
+            }
+
+            res.status(200).json({
+                valid: true,
+                email: user.email,
+            });
+        } catch (err) {
+            next(err);
+        }
+    },
+
+    async verifyAdminResetToken(req, res, next) {
+        try {
+            const token = normalizeResetToken(req.params.token || req.query.token);
+
+            if (!token) {
+                return res.status(400).json({
+                    error: 'Token nao fornecido',
+                    status: 400,
+                });
+            }
+
+            const user = await UserModel.findAdminByResetToken(token);
             if (!user) {
                 return res.status(400).json({
                     error: 'Token invalido ou expirado',
@@ -239,6 +304,46 @@ const AuthController = {
 
             res.status(200).json({
                 message: 'Senha alterada com sucesso',
+            });
+        } catch (err) {
+            next(err);
+        }
+    },
+
+    async resetAdminPassword(req, res, next) {
+        try {
+            const { password } = req.body;
+            const token = normalizeResetToken(req.body.token);
+
+            if (!token || !password) {
+                return res.status(400).json({
+                    error: 'Token e nova senha sao obrigatorios',
+                    status: 400,
+                });
+            }
+
+            const passwordError = validators.getPasswordStrengthError(password);
+            if (passwordError) {
+                return res.status(400).json({
+                    error: passwordError,
+                    status: 400,
+                });
+            }
+
+            const user = await UserModel.findAdminByResetToken(token);
+            if (!user) {
+                return res.status(400).json({
+                    error: 'Token invalido ou expirado',
+                    status: 400,
+                });
+            }
+
+            const hash = await bcrypt.hash(password, 10);
+            await UserModel.update(user.id, { password: hash });
+            await UserModel.clearResetToken(user.id);
+
+            res.status(200).json({
+                message: 'Senha administrativa alterada com sucesso',
             });
         } catch (err) {
             next(err);

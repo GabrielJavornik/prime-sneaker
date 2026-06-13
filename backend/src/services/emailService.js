@@ -88,6 +88,8 @@ const emailService = {
     async sendOrderNotificationToAdmin(order, user, items) {
         try {
             const adminEmail = '093278@aluno.uricer.edu.br';
+            const baseUrl = (process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
+            const adminPanelUrl = `${baseUrl}/admin`;
             const itemsHTML = items
                 .map(item => `<li>${item.name} (${item.quantity}x) - R$ ${item.lineTotal.toFixed(2)}</li>`)
                 .join('');
@@ -122,7 +124,7 @@ const emailService = {
 
                     <h3>Status do Pedido:</h3>
                     <p><strong>${order.status.toUpperCase()}</strong></p>
-                    <p>Acesse o painel admin para confirmar o pagamento: <a href="https://localhost:3000/admin.html">Admin Panel</a></p>
+                    <p>Acesse o painel admin para confirmar o pagamento: <a href="${adminPanelUrl}">Painel Admin</a></p>
                 `,
                 text: `Novo pedido #${order.id} de ${user.name}. Total: R$ ${order.total.toFixed(2)}`,
             });
@@ -163,6 +165,45 @@ const emailService = {
             return true;
         } catch (err) {
             console.error(`❌ Erro ao enviar email de recuperação para ${user.email}:`, err.message);
+            return false;
+        }
+    },
+
+    async sendAdminPasswordResetEmail(user, resetToken) {
+        try {
+            const baseUrl = (process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
+            const resetLink = `${baseUrl}/admin-reset-password.html?token=${encodeURIComponent(resetToken)}`;
+            const safeName = escapeEmailHtml(user.name || 'Administrador');
+
+            await transporter.sendMail({
+                from: `"Prime Sneaker" <${process.env.EMAIL_USER}>`,
+                to: user.email,
+                subject: 'Recuperacao de senha admin - Prime Sneaker',
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto; color: #111827;">
+                        <div style="background:#0F172A; padding:24px; text-align:center; border-radius:12px 12px 0 0;">
+                            <h1 style="color:#D6B23E; margin:0;">Prime Sneaker Admin</h1>
+                        </div>
+                        <div style="padding:28px; background:#ffffff; border:1px solid #e5e7eb; border-top:0;">
+                            <h2 style="margin-top:0;">Recuperacao de acesso</h2>
+                            <p>Ola, ${safeName}.</p>
+                            <p>Recebemos uma solicitacao para redefinir a senha da sua conta administrativa.</p>
+                            <p style="margin:28px 0;">
+                                <a href="${resetLink}" style="background:#D6B23E; color:#111827; padding:14px 22px; text-decoration:none; border-radius:10px; font-weight:bold; display:inline-block;">
+                                    Redefinir senha admin
+                                </a>
+                            </p>
+                            <p>Este link expira em 1 hora. Se voce nao solicitou, ignore este email.</p>
+                            <p style="font-size:13px; color:#64748B; word-break:break-all;">${resetLink}</p>
+                        </div>
+                    </div>
+                `,
+                text: `Recuperacao de senha admin Prime Sneaker\n\nAcesse: ${resetLink}\n\nEste link expira em 1 hora.`,
+            });
+
+            return true;
+        } catch (err) {
+            console.error(`Erro ao enviar recuperacao admin para ${user.email}:`, err.message);
             return false;
         }
     },

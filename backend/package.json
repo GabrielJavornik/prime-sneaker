@@ -7,7 +7,7 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "init-db": "node src/config/initDb.js",
-    "migrate": "node src/config/addMissingColumns.js",
+    "migrate": "node src/config/migrations.js",
     "test": "node tests/security-regression.test.js"
   },
   "keywords": [

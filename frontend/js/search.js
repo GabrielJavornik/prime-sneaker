@@ -18,8 +18,8 @@ const state = {
 
 function readFromUrl() {
     const params = new URLSearchParams(window.location.search);
-    state.q = params.get('q') || '';
-    state.categoria = params.get('categoria') || '';
+    state.q = params.get('q') || params.get('query') || '';
+    state.categoria = params.get('categoria') || params.get('category') || params.get('cat') || '';
     state.brand = params.get('brand') || params.get('marca') || '';
     state.gender = params.get('gender') || params.get('genero') || '';
     state.launch = params.get('launch') || params.get('lancamento') || '';
@@ -60,7 +60,11 @@ function updateUrl() {
     Object.entries(state).forEach(([k, v]) => {
         if (v && v !== '' && !(k === 'page' && v === 1)) params.set(k, v);
     });
-    window.history.replaceState({}, '', 'search.html?' + params.toString());
+    const basePath = window.location.pathname === '/busca' || window.location.pathname === '/busca/'
+        ? '/busca'
+        : 'search.html';
+    const queryString = params.toString();
+    window.history.replaceState({}, '', queryString ? `${basePath}?${queryString}` : basePath);
 }
 
 function getSortOrder(sortBy) {
@@ -127,10 +131,8 @@ function renderCard(p) {
     const name = escapeHTML(p.name || 'Produto');
     const nameAttr = escapeAttribute(p.name || 'Produto');
     const category = escapeHTML(p.category || 'T\u00eanis');
-    const rating = 4.5;
-    const reviews = Math.floor(Math.random() * 100) + 30;
     return `
-    <a href="product.html?id=${productId}" class="product-card">
+    <a href="${buildProductUrl(p)}" class="product-card">
       <div class="product-card-media">
         <img src="${escapeAttribute(img)}" alt="${nameAttr}" loading="lazy" decoding="async" onerror="this.src='https://via.placeholder.com/300x280?text=Sem+Imagem'">
         ${renderOutletBadge(p)}
@@ -138,10 +140,10 @@ function renderCard(p) {
       <div class="info">
         <div class="category">${category}</div>
         <h3>${name}</h3>
-        <div class="rating">⭐⭐⭐⭐⭐ (${reviews} avaliações)</div>
+        ${renderProductReviewSummary(p)}
         <div class="price">${renderProductPrice(p)}</div>
         <div class="btn-container">
-          <button class="btn" onclick="event.stopPropagation(); window.location.href='product.html?id=${productId}'">Compre Agora</button>
+          <button class="btn" onclick="event.stopPropagation(); window.location.href='${buildProductUrl(p)}'">Compre Agora</button>
           <button class="btn-favorite" data-wishlist-product-id="${productId}" onclick="toggleWishlist(${productId}, this); return false;">♡</button>
         </div>
       </div>

@@ -239,6 +239,8 @@ router.post('/products/:id/images', basicAuthAdmin, ProductController.addImage);
  */
 router.delete('/products/images/:imageId', basicAuthAdmin, ProductController.deleteImage);
 
+router.post('/products/images/upload', basicAuthAdmin, ProductController.uploadImage);
+
 /**
  * @swagger
  * /products:

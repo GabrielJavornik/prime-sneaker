@@ -177,60 +177,113 @@ const AdminReportController = {
 
             const threshold = parseInt(req.query.threshold) || 10;
             const criticalThreshold = parseInt(req.query.criticalThreshold) || 5;
-
-            const result = await db.query(`
+            const includeAll = ['1', 'true', 'all'].includes(String(req.query.all || req.query.includeAll || '').toLowerCase());
+            const page = Math.max(parseInt(req.query.page) || 1, 1);
+            const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 100);
+            const offset = (page - 1) * limit;
+            const sortBy = String(req.query.sortBy || 'severity');
+            const filterSql = includeAll ? '' : 'WHERE stock <= $1';
+            const orderMap = {
+                severity: 'severity_rank ASC, stock ASC, name ASC',
+                stock_asc: 'stock ASC, name ASC',
+                stock_desc: 'stock DESC, name ASC',
+                name_asc: 'LOWER(name) ASC, id DESC',
+            };
+            const orderClause = orderMap[sortBy] || orderMap.severity;
+            const productStockCte = `
                 WITH product_stock AS (
                     SELECT
                         p.id,
                         p.name,
                         p.price,
                         p.category,
-                        COALESCE(SUM(ps.stock), 0) as stock
+                        p.sizes,
+                        COALESCE(
+                            SUM(ps.stock)::int,
+                            CASE
+                                WHEN NULLIF(TRIM(COALESCE(p.sizes, '')), '') IS NULL THEN COALESCE(p.stock, 0)
+                                ELSE 0
+                            END,
+                            0
+                        ) as stock,
+                        COALESCE((
+                            SELECT json_agg(
+                                json_build_object('size', ps2.size, 'stock', COALESCE(ps2.stock, 0))
+                                ORDER BY
+                                    CASE
+                                        WHEN ps2.size ~ '^[0-9]+([.,][0-9]+)?$'
+                                        THEN REPLACE(ps2.size, ',', '.')::numeric
+                                    END NULLS LAST,
+                                    ps2.size
+                            )
+                            FROM product_sizes ps2
+                            WHERE ps2.product_id = p.id
+                        ), '[]'::json) as stock_by_size
                     FROM products p
                     LEFT JOIN product_sizes ps ON p.id = ps.product_id
-                    GROUP BY p.id, p.name, p.price, p.category
+                    WHERE p.archived_at IS NULL
+                    GROUP BY p.id, p.name, p.price, p.category, p.sizes, p.stock
                 )
+            `;
+
+            const result = await db.query(`
+                ${productStockCte}
                 SELECT
                     id,
                     name,
                     price,
                     category,
+                    sizes,
                     stock,
+                    stock_by_size,
                     CASE
                         WHEN stock <= $2 THEN 'critical'
                         WHEN stock <= $1 THEN 'attention'
                         ELSE 'ok'
-                    END as severity
+                    END as severity,
+                    CASE
+                        WHEN stock <= $2 THEN 0
+                        WHEN stock <= $1 THEN 1
+                        ELSE 2
+                    END as severity_rank
                 FROM product_stock
-                WHERE stock <= $1
-                ORDER BY stock ASC, name ASC
-            `, [threshold, criticalThreshold]);
+                ${filterSql}
+                ORDER BY ${orderClause}
+                LIMIT $3 OFFSET $4
+            `, [threshold, criticalThreshold, limit, offset]);
+
+            const countResult = await db.query(`
+                ${productStockCte}
+                SELECT COUNT(*)::int AS total
+                FROM product_stock
+                ${filterSql}
+            `, includeAll ? [] : [threshold]);
 
             const summaryResult = await db.query(`
-                WITH product_stock AS (
-                    SELECT
-                        p.id,
-                        COALESCE(SUM(ps.stock), 0) as stock
-                    FROM products p
-                    LEFT JOIN product_sizes ps ON p.id = ps.product_id
-                    GROUP BY p.id
-                )
+                ${productStockCte}
                 SELECT
-                    COUNT(*) FILTER (WHERE stock <= $2) as critical,
-                    COUNT(*) FILTER (WHERE stock > $2 AND stock <= $1) as attention,
-                    COUNT(*) FILTER (WHERE stock > $1) as ok
+                    COUNT(*) FILTER (WHERE stock <= $2)::int as critical,
+                    COUNT(*) FILTER (WHERE stock > $2 AND stock <= $1)::int as attention,
+                    COUNT(*) FILTER (WHERE stock > $1)::int as ok
                 FROM product_stock
             `, [threshold, criticalThreshold]);
             const summary = summaryResult.rows[0] || {};
+            const total = Number(countResult.rows[0]?.total || 0);
 
             res.status(200).json({
                 threshold,
                 criticalThreshold,
-                total: result.rows.length,
+                total,
                 severity: {
                     critical: Number(summary.critical || 0),
                     attention: Number(summary.attention || 0),
                     ok: Number(summary.ok || 0),
+                },
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    totalPages: Math.max(1, Math.ceil(total / limit)),
                 },
                 items: result.rows,
             });

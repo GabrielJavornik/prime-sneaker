@@ -14,6 +14,13 @@ function notFoundHandler(req, res, next) {
 // Erro generico (500 por padrao)
 function errorHandler(err, req, res, next) {
     console.error('[ERROR]', err);
+    if (err.code === '23505' && String(err.constraint || '').includes('users_email')) {
+        return res.status(400).json({
+            error: 'Email ja cadastrado',
+            status: 400,
+        });
+    }
+
     const status = err.status || 500;
     res.status(status).json({
         error: err.message || 'Erro interno do servidor',

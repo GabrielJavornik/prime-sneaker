@@ -13,8 +13,8 @@ function normalizeAuditDate(value, endOfDay = false) {
 const AdminAuditLogController = {
     async list(req, res, next) {
         try {
-            const limit = Number(req.query.limit) || 100;
-            const offset = Number(req.query.offset) || 0;
+            const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 100);
+            const offset = Math.max(Number(req.query.offset) || 0, 0);
             const filters = {
                 dateFrom: normalizeAuditDate(req.query.dateFrom),
                 dateTo: normalizeAuditDate(req.query.dateTo, true),
@@ -22,8 +22,23 @@ const AdminAuditLogController = {
                 action: String(req.query.action || '').trim(),
                 target: String(req.query.target || '').trim(),
             };
-            const logs = await AdminAuditLogModel.findAll({ limit, offset, ...filters });
-            res.status(200).json({ items: logs, filters });
+            const [logs, total] = await Promise.all([
+                AdminAuditLogModel.findAll({ limit, offset, ...filters }),
+                AdminAuditLogModel.count(filters),
+            ]);
+            const page = Math.floor(offset / limit) + 1;
+
+            res.status(200).json({
+                items: logs,
+                filters,
+                pagination: {
+                    page,
+                    limit,
+                    offset,
+                    total,
+                    totalPages: Math.max(1, Math.ceil(total / limit)),
+                },
+            });
         } catch (err) {
             next(err);
         }

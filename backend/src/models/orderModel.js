@@ -26,7 +26,14 @@ const OrderModel = {
         const order = await db.query('SELECT * FROM orders WHERE id = $1', [id]);
         if (!order.rows[0]) return null;
 
-        const items = await db.query('SELECT * FROM order_items WHERE order_id = $1', [id]);
+        const items = await db.query(
+            `SELECT oi.*, p.image_url, p.color, p.brand
+             FROM order_items oi
+             LEFT JOIN products p ON p.id = oi.product_id
+             WHERE oi.order_id = $1
+             ORDER BY oi.id ASC`,
+            [id]
+        );
 
         return {
             ...order.rows[0],

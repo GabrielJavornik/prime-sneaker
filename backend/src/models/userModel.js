@@ -26,6 +26,48 @@ const UserModel = {
         return result.rows[0];
     },
 
+    async promoteToAdmin(id, { name, password, isSuperAdmin = false }) {
+        const result = await db.query(
+            `UPDATE users
+             SET name = $1,
+                 password = $2,
+                 is_admin = TRUE,
+                 is_super_admin = CASE WHEN is_super_admin = TRUE THEN TRUE ELSE $3 END,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $4
+             RETURNING id, name, email, phone, is_admin, is_super_admin`,
+            [name, password, isSuperAdmin, id]
+        );
+        return result.rows[0];
+    },
+
+    async updateAdmin(id, { name, email, password, isSuperAdmin }) {
+        const fields = [
+            'name = $1',
+            'email = $2',
+            'is_admin = TRUE',
+            'is_super_admin = $3',
+        ];
+        const params = [name, email, isSuperAdmin];
+
+        if (password) {
+            fields.push(`password = $${params.length + 1}`);
+            params.push(password);
+        }
+
+        fields.push('updated_at = CURRENT_TIMESTAMP');
+        params.push(id);
+
+        const result = await db.query(
+            `UPDATE users
+             SET ${fields.join(', ')}
+             WHERE id = $${params.length}
+             RETURNING id, name, email, phone, is_admin, is_super_admin, created_at`,
+            params
+        );
+        return result.rows[0];
+    },
+
     async update(id, { name, email, phone, cpf, cep, address, password }) {
         const fields = [];
         const params = [];
@@ -78,10 +120,14 @@ const UserModel = {
     },
 
     async setResetToken(email, token, expiresIn = 3600000) {
-        const expiresAt = new Date(Date.now() + expiresIn);
         const result = await db.query(
-            'UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE email = $3 RETURNING id, email',
-            [token, expiresAt, email]
+            `UPDATE users
+             SET reset_token = $1,
+                 reset_token_expires = NOW() + ($2::int * INTERVAL '1 millisecond'),
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE email = $3
+             RETURNING id, email, reset_token_expires`,
+            [token, expiresIn, email]
         );
         return result.rows[0];
     },
@@ -89,6 +135,18 @@ const UserModel = {
     async findByResetToken(token) {
         const result = await db.query(
             'SELECT * FROM users WHERE reset_token = $1 AND reset_token_expires > NOW()',
+            [token]
+        );
+        return result.rows[0];
+    },
+
+    async findAdminByResetToken(token) {
+        const result = await db.query(
+            `SELECT *
+             FROM users
+             WHERE reset_token = $1
+               AND reset_token_expires > NOW()
+               AND (is_admin = TRUE OR is_super_admin = TRUE)`,
             [token]
         );
         return result.rows[0];
@@ -104,6 +162,16 @@ const UserModel = {
     async findAll() {
         const result = await db.query(
             'SELECT id, name, email, phone, cpf, cep, address, is_admin, is_super_admin, created_at FROM users ORDER BY created_at DESC'
+        );
+        return result.rows;
+    },
+
+    async findAdmins() {
+        const result = await db.query(
+            `SELECT id, name, email, phone, is_admin, is_super_admin, created_at
+             FROM users
+             WHERE is_admin = TRUE
+             ORDER BY created_at DESC`
         );
         return result.rows;
     },

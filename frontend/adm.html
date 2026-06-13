@@ -1,11 +1,11 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>&Aacute;rea Administrativa - Prime Sneaker</title>
-    <link rel="stylesheet" href="css/style.css?v=31" />
-    <link rel="stylesheet" href="css/admin-panel.css?v=16" />
+    <link rel="stylesheet" href="css/style.css?v=32" />
+    <link rel="stylesheet" href="css/admin-panel.css?v=36" />
     <script>
         // As sessões de usuário normal (`user`/`token`) e de admin
         // (`adminUser`/`adminToken`) são independentes e NÃO devem ser
@@ -15,7 +15,7 @@
     <script>
         // VERIFICAÇÃO DE SEGURANÇA - EXECUTAR PRIMEIRO
         // Se não está logado como admin, redirecionar imediatamente.
-        // A sessão admin é guardada em sessionStorage — dessa forma, fechar o
+        // A sessão admin é guardada em sessionStorage - dessa forma, fechar o
         // navegador ou reiniciar o PC encerra a sessão e exige novo login.
         const adminToken = sessionStorage.getItem('adminToken');
         // A permissao real nao e lida de adminUser aqui. admin.js chama /api/admin/session
@@ -318,14 +318,13 @@
                                     <button type="button" class="btn-admin-clear" onclick="resetAdminProductFilters()">Limpar</button>
                                 </div>
                             </div>
-                            <div class="admin-table-wrapper admin-table-min-980" tabindex="0" aria-label="Tabela com rolagem horizontal">
+                            <div class="admin-table-wrapper admin-table-wrapper-compact admin-table-min-980" tabindex="0" aria-label="Tabela administrativa responsiva">
                                 <table id="products-table">
                                     <thead>
                                         <tr>
-                                            <th>Imagem</th>
-                                            <th>Nome</th>
+                                            <th>Produto</th>
                                             <th>Categoria</th>
-                                            <th>Marca</th>
+                                            <th>Marca e tags</th>
                                             <th>Pre&ccedil;o</th>
                                             <th>Estoque</th>
                                             <th>A&ccedil;&otilde;es</th>
@@ -345,16 +344,24 @@
                                 </div>
                                 <button type="button" onclick="closeProductForm()" aria-label="Fechar formul&aacute;rio">Fechar</button>
                             </div>
-                            <form id="product-form">
+                            <form id="product-form" class="admin-product-form">
                                 <input type="hidden" id="product-id" />
+                                <section class="admin-product-form-section">
+                                    <div class="admin-product-form-section-head">
+                                        <span>01</span>
+                                        <div>
+                                            <h4>Dados do t&ecirc;nis</h4>
+                                            <p>Nome, pre&ccedil;o, marca e tags que aparecem no cat&aacute;logo.</p>
+                                        </div>
+                                    </div>
                                 <div class="admin-form-grid">
-                                    <div class="form-group">
+                                    <div class="form-group form-group-wide">
                                         <label for="p-name">Nome</label>
-                                        <input type="text" id="p-name" required />
+                                        <input type="text" id="p-name" placeholder="Ex: Adidas Ultraboost 22" required />
                                     </div>
                                     <div class="form-group">
-                                        <label for="p-price">Preço (R$)</label>
-                                        <input type="number" id="p-price" step="0.01" min="0" required />
+                                        <label for="p-price">Pre&ccedil;o (R$)</label>
+                                        <input type="number" id="p-price" step="0.01" min="0" placeholder="899.90" required />
                                     </div>
                                     <div class="form-group">
                                         <label for="p-discount">Desconto outlet (%)</label>
@@ -372,16 +379,20 @@
                                             <option value="trekking">Trekking</option>
                                         </select>
                                     </div>
+                                     <div class="form-group">
+                                         <label for="p-color">Cor</label>
+                                         <input type="text" id="p-color" placeholder="Preto, Branco, etc." />
+                                     </div>
                                     <div class="form-group">
-                                        <label for="p-color">Cor</label>
-                                        <input type="text" id="p-color" placeholder="Preto, Branco, etc." />
+                                        <label for="p-model-group">Grupo do modelo</label>
+                                        <input type="text" id="p-model-group" placeholder="Ex: Adidas Ultraboost 22" />
+                                    </div>
+                                     <div class="form-group">
+                                         <label for="p-brand">Marca</label>
+                                         <input type="text" id="p-brand" placeholder="Nike, Adidas, Vans..." />
                                     </div>
                                     <div class="form-group">
-                                        <label for="p-brand">Marca</label>
-                                        <input type="text" id="p-brand" placeholder="Nike, Adidas, Vans..." />
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="p-gender">Público</label>
+                                        <label for="p-gender">P&uacute;blico</label>
                                         <select id="p-gender">
                                             <option value="unissex">Unissex</option>
                                             <option value="masculino">Masculino</option>
@@ -390,7 +401,7 @@
                                         </select>
                                     </div>
                                     <div class="form-group">
-                                        <label for="p-sizes">Tamanhos disponíveis</label>
+                                        <label for="p-sizes">Tamanhos dispon&iacute;veis</label>
                                         <input type="text" id="p-sizes" placeholder="Ex: 38,39,40,41,42" />
                                     </div>
                                     <div class="form-group product-flags-group">
@@ -398,7 +409,7 @@
                                         <div class="product-flags" role="group" aria-labelledby="product-flags-label">
                                             <label class="admin-check" for="p-launch">
                                                 <input type="checkbox" id="p-launch" />
-                                                <span>Lançamento</span>
+                                                <span>Lan&ccedil;amento</span>
                                             </label>
                                             <label class="admin-check" for="p-outlet">
                                                 <input type="checkbox" id="p-outlet" />
@@ -407,29 +418,57 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="form-group">
-                                    <label for="p-image">URL da Imagem</label>
-                                    <input type="text" id="p-image" placeholder="https://..." />
-                                </div>
-                                <!-- Galeria de imagens -->
-                                <div class="form-group is-hidden" id="gallery-manager">
-                                    <label for="gallery-new-url">Galeria de Fotos</label>
-                                    <div id="gallery-images-list" class="admin-gallery-list"></div>
-                                    <div class="admin-inline-actions">
-                                        <input type="text" id="gallery-new-url" class="admin-flex-input" placeholder="URL da nova foto..." />
-                                        <button type="button" class="btn-secondary" onclick="addGalleryImage()">Adicionar</button>
+                                </section>
+                                <section class="admin-product-form-section">
+                                    <div class="admin-product-form-section-head">
+                                        <span>02</span>
+                                        <div>
+                                            <h4>Fotos e descri&ccedil;&atilde;o</h4>
+                                            <p>Use link externo ou envie fotos direto do computador.</p>
+                                        </div>
                                     </div>
+                                <div class="form-group is-hidden" id="gallery-manager">
+                                    <input type="hidden" id="p-image" />
+                                    <input type="file" id="p-image-file" class="admin-file-input" accept="image/png,image/jpeg,image/webp,image/gif" aria-hidden="true" tabindex="-1" />
+                                    <label for="gallery-new-url">Fotos do produto</label>
+                                    <div id="gallery-images-list" class="admin-gallery-list"></div>
+                                    <div id="photo-add-panel" class="admin-photo-add-panel">
+                                        <div class="admin-photo-add-title">
+                                            <strong>Adicionar pr&oacute;xima foto</strong>
+                                            <span>Use um link externo ou selecione uma imagem do computador.</span>
+                                        </div>
+                                        <div class="admin-photo-add-row">
+                                            <input type="text" id="gallery-new-url" class="admin-flex-input" placeholder="Cole o link da foto ou escolha do PC" />
+                                            <label class="btn-secondary admin-file-button" for="gallery-new-file">Escolher do PC</label>
+                                            <button type="button" class="btn-secondary admin-photo-add-button" onclick="addProductPhotoFromCurrentInput()">Adicionar foto</button>
+                                        </div>
+                                        <input type="file" id="gallery-new-file" class="admin-file-input" accept="image/png,image/jpeg,image/webp,image/gif" />
+                                        <span id="gallery-file-count" class="admin-selected-file-label">Nenhuma foto selecionada</span>
+                                    </div>
+                                    <small id="gallery-upload-status" class="admin-upload-status">Adicione de 1 a 4 fotos. A primeira foto ser&aacute; a principal do produto.</small>
                                 </div>
                                 <div class="form-group">
-                                    <label for="p-description">Descrição</label>
-                                    <textarea id="p-description" rows="3"></textarea>
+                                    <label for="p-description">Descri&ccedil;&atilde;o</label>
+                                    <textarea id="p-description" rows="4" maxlength="500" placeholder="Descreva conforto, material, tecnologia e ocasi&atilde;o de uso."></textarea>
+                                    <small id="p-description-count" class="admin-field-hint">0/500 caracteres</small>
                                 </div>
+                                </section>
+                                <section class="admin-product-form-section">
+                                    <div class="admin-product-form-section-head">
+                                        <span>03</span>
+                                        <div>
+                                            <h4>Estoque por tamanho</h4>
+                                            <p>Informe quantas unidades existem em cada numera&ccedil;&atilde;o.</p>
+                                        </div>
+                                    </div>
                                 <div class="form-group">
-                                    <span class="admin-field-label" id="size-stock-label">Estoque por Tamanho</span>
+                                    <span class="admin-field-label" id="size-stock-label">Estoque por tamanho</span>
                                     <div id="size-stock-inputs" class="admin-size-stock-grid" role="group" aria-labelledby="size-stock-label">
                                     </div>
                                 </div>
+                                </section>
                                 <div class="admin-form-actions">
+                                    <div id="product-form-alert" class="admin-form-feedback" aria-live="polite"></div>
                                     <button type="submit" class="btn-primary">Salvar</button>
                                     <button type="button" class="admin-cancel-button" onclick="closeProductForm()">Cancelar</button>
                                 </div>
@@ -501,16 +540,13 @@
                                 </div>
                                 <button type="button" class="btn-admin-new-product" data-superadmin-only="true" onclick="openCouponCreateForm()">+ Novo cupom</button>
                             </div>
-                            <div class="admin-table-wrapper admin-table-min-860" tabindex="0" aria-label="Tabela com rolagem horizontal">
+                            <div class="admin-table-wrapper admin-table-wrapper-compact admin-table-min-860" tabindex="0" aria-label="Tabela administrativa responsiva">
                                 <table id="coupons-table">
                                     <thead>
                                         <tr>
-                                            <th>C&oacute;digo</th>
-                                            <th>Desconto</th>
-                                            <th>Valor M&iacute;nimo</th>
-                                            <th>Validade</th>
-                                            <th>Usos</th>
-                                            <th>Status</th>
+                                            <th>Cupom</th>
+                                            <th>Regras</th>
+                                            <th>Validade e uso</th>
                                             <th>A&ccedil;&otilde;es</th>
                                         </tr>
                                     </thead>
@@ -704,13 +740,11 @@
                                 </label>
                                 <button type="button" class="btn-admin-clear" onclick="resetCustomerFilters()">Limpar</button>
                             </div>
-                            <div class="admin-table-wrapper admin-table-min-980" tabindex="0" aria-label="Tabela com rolagem horizontal">
+                            <div class="admin-table-wrapper admin-table-wrapper-compact admin-table-min-980" tabindex="0" aria-label="Tabela administrativa responsiva">
                                 <table id="clientes-report-table">
                                     <thead>
                                         <tr>
-                                            <th>Nome</th>
-                                            <th>E-mail</th>
-                                            <th>Telefone</th>
+                                            <th>Cliente</th>
                                             <th>Pedidos</th>
                                             <th>Total Gasto</th>
                                             <th>&Uacute;ltimo Pedido</th>
@@ -719,7 +753,7 @@
                                     </thead>
                                     <tbody id="clientes-table">
                                         <tr>
-                                            <td colspan="7" class="admin-center-muted">
+                                            <td colspan="5" class="admin-center-muted">
                                                 Carregando...
                                             </td>
                                         </tr>
@@ -729,11 +763,11 @@
                         </div>
                     </div>
 
-                    <!-- TAB: Estoque Baixo -->
+                    <!-- TAB: Estoque -->
                     <div id="tab-estoque" class="is-hidden">
-                        <h2>Produtos com estoque baixo</h2>
+                        <h2>Monitoramento de estoque</h2>
                         <p class="admin-section-description">
-                            Produtos com estoque igual ou inferior a 10 unidades, ordenados por menor estoque primeiro.
+                            Todos os produtos cadastrados, com alerta visual por quantidade dispon&iacute;vel.
                         </p>
                         <div class="dash-cards admin-stock-summary">
                             <div class="dash-card admin-stock-card is-critical">
@@ -749,7 +783,7 @@
                             <div class="dash-card admin-stock-card is-ok">
                                 <div class="label">OK</div>
                                 <div class="value" id="stock-ok-count">0</div>
-                                <small>Acima de 10 unidades</small>
+                                <small>Mais de 10 unidades</small>
                             </div>
                         </div>
 
@@ -757,7 +791,7 @@
                             <div class="admin-products-table-head">
                                 <div>
                                     <h3>Monitoramento de estoque</h3>
-                                    <p>Priorize primeiro os produtos com menor quantidade dispon&iacute;vel.</p>
+                                    <p>Vermelho at&eacute; 5, amarelo de 6 a 10 e verde acima de 10 unidades.</p>
                                 </div>
                             </div>
                             <div class="admin-stock-toolbar">
@@ -770,7 +804,7 @@
                                         <option value="name_asc">Produto A-Z</option>
                                     </select>
                                 </label>
-                                <button type="button" class="btn-admin-filter" onclick="loadEstoqueReport()">Atualizar</button>
+                                <button type="button" class="btn-admin-filter" onclick="loadEstoqueReport({ resetPage: true })">Atualizar</button>
                             </div>
                             <div class="admin-table-wrapper admin-table-min-760" tabindex="0" aria-label="Tabela com rolagem horizontal">
                                 <table id="estoque-report-table">
@@ -780,27 +814,63 @@
                                             <th>Categoria</th>
                                             <th>Pre&ccedil;o</th>
                                             <th>Estoque Atual</th>
+                                            <th>Por tamanho</th>
                                             <th>Severidade</th>
                                         </tr>
                                     </thead>
                                     <tbody id="estoque-table">
                                         <tr>
-                                            <td colspan="5" class="admin-center-muted">
+                                            <td colspan="6" class="admin-center-muted">
                                                 Carregando...
                                             </td>
                                         </tr>
                                     </tbody>
                                 </table>
                             </div>
+                            <div id="estoque-pagination" class="admin-pagination"></div>
                         </div>
                     </div>
 
                     <!-- TAB: Administradores -->
                     <div id="tab-admins" class="is-hidden">
                         <h2>Gerenciar administradores</h2>
-                        <div class="card-form admin-form-card">
-                            <h3>Adicionar novo administrador</h3>
+                        <p class="admin-section-description">
+                            Consulte acessos existentes antes de criar um novo administrador.
+                        </p>
+                        <div class="admin-products-table-card admin-admins-table-card">
+                            <div class="admin-products-table-head">
+                                <div>
+                                    <h3>Administradores cadastrados</h3>
+                                    <p>Cria&ccedil;&atilde;o, edi&ccedil;&atilde;o e remo&ccedil;&atilde;o ficam restritas ao superadmin.</p>
+                                </div>
+                                <button type="button" class="btn-admin-new-product" onclick="openAdminCreateForm()">+ Novo administrador</button>
+                            </div>
+                            <div class="admin-table-wrapper admin-table-min-760" tabindex="0" aria-label="Tabela com rolagem horizontal">
+                                <table id="admins-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nome</th>
+                                            <th>Email</th>
+                                            <th>Data de Criação</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div id="admin-form-backdrop" class="admin-drawer-backdrop" onclick="closeAdminForm()"></div>
+                        <div id="admin-editor-card" class="card-form admin-form-card admin-admin-drawer" aria-hidden="true">
+                            <div class="admin-drawer-head">
+                                <div>
+                                    <span>Acesso sens&iacute;vel</span>
+                                    <h3 id="admin-editor-title">Novo administrador</h3>
+                                </div>
+                                <button type="button" onclick="closeAdminForm()" aria-label="Fechar formul&aacute;rio">Fechar</button>
+                            </div>
                             <form id="admin-form">
+                                <input type="hidden" id="a-id" />
                                 <div class="admin-form-grid">
                                     <div class="form-group">
                                         <label for="a-name">Nome</label>
@@ -818,34 +888,21 @@
                                         </select>
                                     </div>
                                     <div class="form-group">
-                                        <label for="a-password">Senha</label>
+                                        <label for="a-password" id="a-password-label">Senha</label>
                                         <input type="password" id="a-password" required minlength="8" />
+                                        <small id="a-password-help" class="admin-field-help is-hidden">Deixe vazio para manter a senha atual.</small>
                                     </div>
                                     <div class="form-group">
-                                        <label for="a-password-confirm">Confirmar Senha</label>
+                                        <label for="a-password-confirm" id="a-password-confirm-label">Confirmar senha</label>
                                         <input type="password" id="a-password-confirm" required minlength="8" />
                                     </div>
                                 </div>
                                 <div id="admin-form-alert"></div>
                                 <div class="admin-form-actions">
-                                    <button type="submit" class="btn-primary">Adicionar Admin</button>
-                                    <button type="button" class="admin-cancel-button" onclick="resetAdminForm()">Cancelar</button>
+                                    <button type="submit" class="btn-primary" id="admin-form-submit">Adicionar Admin</button>
+                                    <button type="button" class="admin-cancel-button" onclick="closeAdminForm()">Cancelar</button>
                                 </div>
                             </form>
-                        </div>
-                        <h3>Administradores cadastrados</h3>
-                        <div class="admin-table-wrapper admin-table-min-760" tabindex="0" aria-label="Tabela com rolagem horizontal">
-                            <table id="admins-table">
-                                <thead>
-                                    <tr>
-                                        <th>Nome</th>
-                                        <th>Email</th>
-                                        <th>Data de Criação</th>
-                                        <th>Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
                         </div>
                     </div>
 
@@ -892,30 +949,29 @@
                                 <input type="search" id="audit-target-filter" placeholder="Produto, cupom, pedido..." />
                             </label>
                             <div class="admin-audit-toolbar-actions">
-                                <button type="button" class="btn-admin-filter" onclick="loadAuditLogs()">Filtrar</button>
+                                <button type="button" class="btn-admin-filter" onclick="loadAuditLogs({ resetPage: true })">Filtrar</button>
                                 <button type="button" class="btn-admin-clear" onclick="resetAuditFilters()">Limpar</button>
                             </div>
                         </div>
-                        <div class="admin-table-wrapper admin-table-min-920" tabindex="0" aria-label="Tabela com rolagem horizontal">
+                        <div class="admin-table-wrapper admin-table-wrapper-compact admin-table-min-920" tabindex="0" aria-label="Tabela administrativa responsiva">
                             <table id="audit-logs-table">
                                 <thead>
                                     <tr>
-                                        <th>Data</th>
-                                        <th>Admin</th>
-                                        <th>A&ccedil;&atilde;o</th>
-                                        <th>Alvo</th>
+                                        <th>Registro</th>
+                                        <th>A&ccedil;&atilde;o e alvo</th>
                                         <th>Detalhes</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td colspan="5" class="admin-center-muted">
+                                        <td colspan="3" class="admin-center-muted">
                                             Carregando auditoria...
                                         </td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
+                        <div id="audit-pagination" class="admin-pagination"></div>
                     </div>
                 </section>
             </div>
@@ -925,10 +981,10 @@
     <div id="footer-placeholder"></div>
 
     <script src="js/simple-chart.js?v=1"></script>
-    <script src="js/notifications.js?v=2"></script>
-    <script src="js/api.js?v=5"></script>
-    <script src="js/common.js?v=18"></script>
-    <script src="js/admin.js?v=35"></script>
+    <script src="js/notifications.js?v=3"></script>
+    <script src="js/api.js?v=7"></script>
+    <script src="js/common.js?v=23"></script>
+    <script src="js/admin.js?v=60"></script>
     <script>
         // Na página admin, mostrar o nome do admin no header e trocar
         // o dropdown pelas opções corretas de admin. Assim o botão "Sair"
@@ -940,7 +996,7 @@
 
                 const adminUser = JSON.parse(adminUserRaw);
                 const firstName = escapeHTML((adminUser.name || '').split(' ')[0] || 'Admin');
-                const greetText = `Ola, ${firstName} (Admin)`;
+                const greetText = `Ol&aacute;, ${firstName} (Admin)`;
 
                 const nav = document.querySelector('.main-nav');
                 if (!nav) return false;
@@ -991,3 +1047,4 @@
     </script>
 </body>
 </html>
+

@@ -126,7 +126,7 @@ function renderPage() {
       <div class="empty-cart">
         <h3 style="margin-bottom: 1rem;">Seu carrinho est\u00e1 vazio</h3>
         <p>Que tal adicionar alguns t\u00eanis incr\u00edveis?</p>
-        <a href="search.html" class="btn-primary" style="display: inline-block; width: auto; padding: 0.7rem 2rem; margin-top: 1rem; text-decoration: none;">Ver Cat\u00e1logo</a>
+        <a href="/busca" class="btn-primary" style="display: inline-block; width: auto; padding: 0.7rem 2rem; margin-top: 1rem; text-decoration: none;">Ver Cat\u00e1logo</a>
       </div>
     `;
         return;
@@ -555,7 +555,10 @@ function finalizar() {
     window.location.href = 'checkout.html';
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     carregarPerfilUsuario();
+    if (typeof Cart !== 'undefined' && typeof Cart.syncFromServer === 'function') {
+        await Cart.syncFromServer();
+    }
     recalc();
 });

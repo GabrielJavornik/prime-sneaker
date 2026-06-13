@@ -132,7 +132,7 @@ const UserController = {
             if (!req.user.isAdmin) {
                 return res.status(403).json({ error: 'Nao autorizado', status: 403 });
             }
-            const users = await UserModel.findAll();
+            const users = await UserModel.findAdmins();
             res.status(200).json(users);
         } catch (err) {
             next(err);
@@ -146,15 +146,17 @@ const UserController = {
             }
 
             const { name, email, password, role, isSuperAdmin, is_super_admin } = req.body;
+            const normalizedName = String(name || '').trim();
+            const normalizedEmail = String(email || '').trim().toLowerCase();
 
-            if (!validators.isValidName(name)) {
+            if (!validators.isValidName(normalizedName)) {
                 return res.status(400).json({
                     error: 'Nome invalido: deve ter entre 3 e 100 caracteres',
                     status: 400,
                 });
             }
 
-            if (!validators.isValidEmail(email)) {
+            if (!validators.isValidEmail(normalizedEmail)) {
                 return res.status(400).json({
                     error: 'Email invalido',
                     status: 400,
@@ -169,23 +171,59 @@ const UserController = {
                 });
             }
 
-            const existing = await UserModel.findByEmail(email.toLowerCase());
-            if (existing) {
-                return res.status(400).json({
-                    error: 'Email ja cadastrado',
-                    status: 400,
-                });
-            }
-
             const hash = await bcrypt.hash(password, 10);
             const shouldCreateSuperAdmin = role === 'superadmin' || isSuperAdmin === true || is_super_admin === true;
-            const newAdmin = await UserModel.create({
-                name: name.trim(),
-                email: email.toLowerCase(),
-                password: hash,
-                isAdmin: true,
-                isSuperAdmin: shouldCreateSuperAdmin,
-            });
+
+            const promoteExistingUser = async (existingUser) => {
+                const promotedAdmin = await UserModel.promoteToAdmin(existingUser.id, {
+                    name: normalizedName,
+                    password: hash,
+                    isSuperAdmin: shouldCreateSuperAdmin,
+                });
+
+                await logAdminAction(req, {
+                    action: 'admin.create',
+                    entityType: 'user',
+                    entityId: promotedAdmin.id,
+                    details: {
+                        name: promotedAdmin.name,
+                        email: promotedAdmin.email,
+                        role: promotedAdmin.is_super_admin ? 'superadmin' : 'admin',
+                        promoted: true,
+                    },
+                });
+
+                return res.status(200).json({
+                    ...promotedAdmin,
+                    message: existingUser.is_admin ? 'Administrador atualizado' : 'Conta promovida para administrador',
+                    promoted: !existingUser.is_admin,
+                });
+            };
+
+            const existing = await UserModel.findByEmail(normalizedEmail);
+
+            if (existing) {
+                return promoteExistingUser(existing);
+            }
+
+            let newAdmin;
+            try {
+                newAdmin = await UserModel.create({
+                    name: normalizedName,
+                    email: normalizedEmail,
+                    password: hash,
+                    isAdmin: true,
+                    isSuperAdmin: shouldCreateSuperAdmin,
+                });
+            } catch (err) {
+                if (err.code === '23505') {
+                    const duplicatedUser = await UserModel.findByEmail(normalizedEmail);
+                    if (duplicatedUser) {
+                        return promoteExistingUser(duplicatedUser);
+                    }
+                }
+                throw err;
+            }
 
             await logAdminAction(req, {
                 action: 'admin.create',
@@ -199,6 +237,98 @@ const UserController = {
             });
 
             res.status(201).json(newAdmin);
+        } catch (err) {
+            next(err);
+        }
+    },
+
+    async updateAdmin(req, res, next) {
+        try {
+            if (!(req.user.isSuperAdmin || req.user.is_super_admin)) {
+                return res.status(403).json({ error: 'Nao autorizado', status: 403 });
+            }
+
+            const adminId = parseInt(req.params.id, 10);
+            if (!Number.isInteger(adminId) || adminId < 1) {
+                return res.status(400).json({ error: 'ID invalido', status: 400 });
+            }
+
+            const admin = await UserModel.findById(adminId);
+            if (!admin || !admin.is_admin) {
+                return res.status(404).json({ error: 'Administrador nao encontrado', status: 404 });
+            }
+
+            const { name, email, password, role, isSuperAdmin, is_super_admin } = req.body;
+            const normalizedName = String(name || '').trim();
+            const normalizedEmail = String(email || '').trim().toLowerCase();
+            const shouldBeSuperAdmin = role === 'superadmin' || isSuperAdmin === true || is_super_admin === true;
+
+            if (!['admin', 'superadmin'].includes(role)) {
+                return res.status(400).json({ error: 'Tipo de acesso invalido', status: 400 });
+            }
+
+            if (!validators.isValidName(normalizedName)) {
+                return res.status(400).json({
+                    error: 'Nome invalido: deve ter entre 3 e 100 caracteres',
+                    status: 400,
+                });
+            }
+
+            if (!validators.isValidEmail(normalizedEmail)) {
+                return res.status(400).json({ error: 'Email invalido', status: 400 });
+            }
+
+            if (adminId === Number(req.user.id) && !shouldBeSuperAdmin) {
+                return res.status(400).json({
+                    error: 'Voce nao pode remover seu proprio acesso de superadmin',
+                    status: 400,
+                });
+            }
+
+            const emailOwner = await UserModel.findByEmail(normalizedEmail);
+            if (emailOwner && Number(emailOwner.id) !== adminId) {
+                return res.status(409).json({ error: 'Email ja cadastrado', status: 409 });
+            }
+
+            let passwordHash;
+            if (password) {
+                const passwordError = validators.getPasswordStrengthError(password);
+                if (passwordError) {
+                    return res.status(400).json({ error: passwordError, status: 400 });
+                }
+                passwordHash = await bcrypt.hash(password, 10);
+            }
+
+            const updatedAdmin = await UserModel.updateAdmin(adminId, {
+                name: normalizedName,
+                email: normalizedEmail,
+                password: passwordHash,
+                isSuperAdmin: shouldBeSuperAdmin,
+            });
+
+            await logAdminAction(req, {
+                action: 'admin.update',
+                entityType: 'user',
+                entityId: adminId,
+                details: {
+                    previous: {
+                        name: admin.name,
+                        email: admin.email,
+                        role: admin.is_super_admin ? 'superadmin' : 'admin',
+                    },
+                    current: {
+                        name: updatedAdmin.name,
+                        email: updatedAdmin.email,
+                        role: updatedAdmin.is_super_admin ? 'superadmin' : 'admin',
+                    },
+                    passwordChanged: Boolean(passwordHash),
+                },
+            });
+
+            return res.status(200).json({
+                message: 'Administrador atualizado com sucesso',
+                user: updatedAdmin,
+            });
         } catch (err) {
             next(err);
         }

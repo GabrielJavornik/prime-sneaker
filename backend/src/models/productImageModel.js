@@ -9,6 +9,14 @@ const ProductImageModel = {
         return r.rows;
     },
 
+    async countByProduct(productId) {
+        const r = await db.query(
+            'SELECT COUNT(*)::int AS count FROM product_images WHERE product_id = $1',
+            [productId]
+        );
+        return Number(r.rows[0]?.count || 0);
+    },
+
     async add(productId, imageUrl, sortOrder = 0) {
         const r = await db.query(
             'INSERT INTO product_images (product_id, image_url, sort_order) VALUES ($1, $2, $3) RETURNING *',

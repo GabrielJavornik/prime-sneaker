@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS products (
     image_url TEXT,
     sizes VARCHAR(100),      -- ex: "38,39,40,41,42"
     color VARCHAR(80),
+    model_group VARCHAR(120), -- agrupa o mesmo modelo em cores diferentes
     category VARCHAR(80),    -- ex: "running", "casual", "basquete"
     brand VARCHAR(80),
     gender VARCHAR(20) DEFAULT 'unissex',
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS products (
     is_outlet BOOLEAN DEFAULT FALSE,
     discount_percent NUMERIC(5, 2) DEFAULT 0,
     stock INTEGER DEFAULT 10,
+    archived_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -74,9 +76,11 @@ CREATE TABLE IF NOT EXISTS product_sizes (
 CREATE INDEX IF NOT EXISTS idx_product_sizes_product_id ON product_sizes(product_id);
 CREATE INDEX IF NOT EXISTS idx_products_category_lower ON products (LOWER(category));
 CREATE INDEX IF NOT EXISTS idx_products_brand_lower ON products (LOWER(brand));
+CREATE INDEX IF NOT EXISTS idx_products_model_group_lower ON products (LOWER(model_group));
 CREATE INDEX IF NOT EXISTS idx_products_gender_lower ON products (LOWER(gender));
 CREATE INDEX IF NOT EXISTS idx_products_launch ON products (is_launch);
 CREATE INDEX IF NOT EXISTS idx_products_outlet ON products (is_outlet);
+CREATE INDEX IF NOT EXISTS idx_products_archived_at ON products (archived_at);
 CREATE INDEX IF NOT EXISTS idx_products_created_at ON products (created_at DESC);
 
 -- Tabela de cupons
@@ -146,6 +150,20 @@ CREATE TABLE IF NOT EXISTS favorites (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, product_id)
 );
+
+-- Tabela de carrinho persistido por usuario
+CREATE TABLE IF NOT EXISTS cart_items (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    size VARCHAR(10) NOT NULL DEFAULT '',
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, product_id, size)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cart_items_user_id ON cart_items(user_id);
 
 -- Tabela de galeria de imagens por produto
 CREATE TABLE IF NOT EXISTS product_images (

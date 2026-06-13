@@ -3,6 +3,9 @@ const ProductSizeModel = require('../models/productSizeModel');
 const ProductImageModel = require('../models/productImageModel');
 const validators = require('../utils/validators');
 const { logAdminAction } = require('../services/auditService');
+const crypto = require('crypto');
+const fs = require('fs/promises');
+const path = require('path');
 
 function parseBooleanFlag(value) {
     return value === true || value === 'true' || value === '1' || value === 1 || value === 'on';
@@ -13,6 +16,14 @@ function firstDefined(...values) {
 }
 
 const PRODUCT_FACETS_CACHE_MS = 60 * 1000;
+const MAX_PRODUCT_IMAGES = 4;
+const MAX_UPLOAD_IMAGE_BYTES = 5 * 1024 * 1024;
+const UPLOAD_IMAGE_TYPES = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/gif': 'gif',
+};
 let productFacetsCache = {
     expiresAt: 0,
     data: null,
@@ -27,13 +38,88 @@ function uniqueSorted(values) {
         .sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
+function splitProductSizes(value) {
+    return String(value || '')
+        .split(',')
+        .map(size => size.trim())
+        .filter(Boolean);
+}
+
+function sortSizes(values) {
+    return [...new Set(values.filter(Boolean))]
+        .sort((a, b) => {
+            const numericA = Number(String(a).replace(',', '.'));
+            const numericB = Number(String(b).replace(',', '.'));
+            if (Number.isFinite(numericA) && Number.isFinite(numericB)) {
+                return numericA - numericB;
+            }
+            return String(a).localeCompare(String(b), 'pt-BR', { numeric: true });
+        });
+}
+
+function normalizeModelGroupInput(modelGroup, name) {
+    const manualGroup = String(modelGroup || '').trim();
+    if (manualGroup) return manualGroup;
+    return String(name || '').trim();
+}
+
+function isAutoModelGroup(product) {
+    const modelGroup = String(product?.model_group || '').trim().toLowerCase();
+    const name = String(product?.name || '').trim().toLowerCase();
+    return !modelGroup || modelGroup === name;
+}
+
+function getProductUploadDir() {
+    return path.join(__dirname, '..', '..', 'uploads', 'products');
+}
+
+function parseUploadedImage(dataUrl) {
+    const match = String(dataUrl || '').match(/^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/=\s]+)$/);
+    if (!match) {
+        const error = new Error('Imagem invalida. Envie PNG, JPG, WEBP ou GIF.');
+        error.status = 400;
+        throw error;
+    }
+
+    const mimeType = match[1];
+    const extension = UPLOAD_IMAGE_TYPES[mimeType];
+    const buffer = Buffer.from(match[2].replace(/\s/g, ''), 'base64');
+
+    if (!buffer.length || buffer.length > MAX_UPLOAD_IMAGE_BYTES) {
+        const error = new Error('Imagem muito grande. Limite maximo: 5MB.');
+        error.status = 400;
+        throw error;
+    }
+
+    return { buffer, mimeType, extension };
+}
+
+function assertImageSignature(buffer, mimeType) {
+    const signatures = {
+        'image/jpeg': () => buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff,
+        'image/png': () => buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+        'image/gif': () => buffer.subarray(0, 3).toString('ascii') === 'GIF',
+        'image/webp': () => buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP',
+    };
+
+    if (!signatures[mimeType]?.()) {
+        const error = new Error('Arquivo enviado nao parece ser uma imagem valida.');
+        error.status = 400;
+        throw error;
+    }
+}
+
 function buildMenuFacets(rows) {
     const brands = uniqueSorted(rows.map(row => row.brand));
     const launchBrands = uniqueSorted(rows.filter(row => row.is_launch).map(row => row.brand));
     const outletBrands = uniqueSorted(rows.filter(row => row.is_outlet).map(row => row.brand));
+    const availableSizes = sortSizes(rows.flatMap(row => {
+        const stockSizes = Array.isArray(row.stock_sizes) ? row.stock_sizes : [];
+        return row.has_size_rows ? stockSizes : splitProductSizes(row.sizes);
+    }));
 
     const brandsByGender = (gender) => uniqueSorted(rows
-        .filter(row => row.gender === gender || row.gender === 'unissex')
+        .filter(row => row.gender === gender || (gender !== 'infantil' && row.gender === 'unissex'))
         .map(row => row.brand));
 
     return {
@@ -45,6 +131,7 @@ function buildMenuFacets(rows) {
             feminino: brandsByGender('feminino'),
             infantil: brandsByGender('infantil'),
         },
+        sizes: availableSizes,
         generatedAt: new Date().toISOString(),
     };
 }
@@ -111,8 +198,9 @@ const ProductController = {
 
     async facets(req, res, next) {
         try {
+            const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true';
             const now = Date.now();
-            if (productFacetsCache.data && productFacetsCache.expiresAt > now) {
+            if (!forceRefresh && productFacetsCache.data && productFacetsCache.expiresAt > now) {
                 res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
                 res.set('X-Cache', 'HIT');
                 return res.status(200).json(productFacetsCache.data);
@@ -125,8 +213,8 @@ const ProductController = {
                 expiresAt: now + PRODUCT_FACETS_CACHE_MS,
             };
 
-            res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-            res.set('X-Cache', 'MISS');
+            res.set('Cache-Control', forceRefresh ? 'no-store' : 'public, max-age=60, stale-while-revalidate=300');
+            res.set('X-Cache', forceRefresh ? 'BYPASS' : 'MISS');
             return res.status(200).json(facets);
         } catch (err) {
             next(err);
@@ -145,6 +233,7 @@ const ProductController = {
             }
             const images = await ProductImageModel.findByProduct(id);
             product.images = images;
+            product.color_variants = await ProductModel.findColorVariants(product);
             res.status(200).json(product);
         } catch (err) {
             next(err);
@@ -224,6 +313,7 @@ const ProductController = {
                 image_url,
                 sizes,
                 color,
+                model_group,
                 category,
                 brand,
                 gender,
@@ -264,6 +354,12 @@ const ProductController = {
             if (brand && !validators.isValidBrand(brand)) {
                 return res.status(400).json({ error: 'Marca invalida', status: 400 });
             }
+            if (!validators.isValidModelGroup(model_group)) {
+                return res.status(400).json({
+                    error: 'Grupo do modelo invalido: maximo 120 caracteres',
+                    status: 400,
+                });
+            }
             if (gender && !validators.isValidGender(gender)) {
                 return res.status(400).json({
                     error: 'Publico invalido. Validos: masculino, feminino, infantil, unissex',
@@ -284,6 +380,7 @@ const ProductController = {
                     status: 400,
                 });
             }
+            const totalStock = stock !== undefined ? Number(stock) : 0;
 
             const p = await ProductModel.create({
                 name: name.trim(),
@@ -292,19 +389,20 @@ const ProductController = {
                 image_url: image_url || '',
                 sizes: sizes || '',
                 color: color || '',
+                model_group: normalizeModelGroupInput(model_group, name),
                 category: (category || 'casual').toLowerCase(),
                 brand: brand?.trim() || name.trim().split(' ')[0],
                 gender: (gender || 'unissex').toLowerCase(),
                 is_launch: parseBooleanFlag(firstDefined(is_launch, launch, lancamento)),
                 is_outlet: parseBooleanFlag(firstDefined(is_outlet, outlet)) || hasDiscount,
                 discount_percent: Number(discountPercent || 0),
-                stock: stock || 10,
+                stock: totalStock,
             });
 
             // Populer product_sizes automaticamente se houver tamanhos
             if (sizes) {
                 const sizeList = sizes.split(',').map(s => s.trim()).filter(Boolean);
-                const stockPerSize = Math.floor((stock || 10) / sizeList.length);
+                const stockPerSize = sizeList.length ? Math.floor(totalStock / sizeList.length) : 0;
                 for (const size of sizeList) {
                     try {
                         await ProductSizeModel.addStock(p.id, size, stockPerSize);
@@ -326,6 +424,7 @@ const ProductController = {
                     category: p.category,
                     brand: p.brand,
                     gender: p.gender,
+                    model_group: p.model_group,
                     is_launch: p.is_launch,
                     is_outlet: p.is_outlet,
                     discount_percent: p.discount_percent,
@@ -394,6 +493,18 @@ const ProductController = {
                 }
                 data.brand = req.body.brand.trim();
             }
+            if (req.body.model_group !== undefined) {
+                if (!validators.isValidModelGroup(req.body.model_group)) {
+                    return res.status(400).json({
+                        error: 'Grupo do modelo invalido: maximo 120 caracteres',
+                        status: 400,
+                    });
+                }
+                data.model_group = normalizeModelGroupInput(req.body.model_group, data.name || existing.name);
+            }
+            if (data.name && req.body.model_group === undefined && isAutoModelGroup(existing)) {
+                data.model_group = data.name;
+            }
             if (req.body.gender !== undefined) {
                 if (!validators.isValidGender(req.body.gender)) {
                     return res.status(400).json({
@@ -429,7 +540,17 @@ const ProductController = {
                 }
                 data.stock = Number(req.body.stock);
             }
-            if (req.body.image_url !== undefined) data.image_url = req.body.image_url;
+            if (req.body.image_url !== undefined) {
+                const nextMainImageCount = String(req.body.image_url || '').trim() ? 1 : 0;
+                const extraImagesCount = await ProductImageModel.countByProduct(id);
+                if (nextMainImageCount + extraImagesCount > MAX_PRODUCT_IMAGES) {
+                    return res.status(400).json({
+                        error: `Limite de ${MAX_PRODUCT_IMAGES} imagens por tenis atingido`,
+                        status: 400,
+                    });
+                }
+                data.image_url = req.body.image_url;
+            }
             if (req.body.sizes !== undefined) data.sizes = req.body.sizes;
             if (req.body.color !== undefined) data.color = req.body.color;
 
@@ -473,9 +594,14 @@ const ProductController = {
                     price: existing?.price,
                     category: existing?.category,
                     brand: existing?.brand,
+                    archived: removed.archived === true,
                 },
             });
-            res.status(200).json({ message: 'Produto removido', id: removed.id });
+            res.status(200).json({
+                message: removed.archived ? 'Produto arquivado e removido do catalogo' : 'Produto removido',
+                id: removed.id,
+                archived: removed.archived === true,
+            });
         } catch (err) {
             next(err);
         }
@@ -537,6 +663,7 @@ const ProductController = {
             }
 
             const updated = [];
+            await ProductSizeModel.removeSizesNotIn(id, stocks.map(item => item.size));
             for (const item of stocks) {
                 const result = await ProductSizeModel.updateStock(id, item.size, Number(item.stock));
                 if (!result) {
@@ -544,6 +671,7 @@ const ProductController = {
                 }
                 updated.push({ size: item.size, stock: Number(item.stock) });
             }
+            clearProductFacetsCache();
 
             await logAdminAction(req, {
                 action: 'product.stock.update',
@@ -588,6 +716,14 @@ const ProductController = {
             if (!existing) {
                 return res.status(404).json({ error: 'Produto nao encontrado', status: 404 });
             }
+            const mainImageCount = existing.image_url ? 1 : 0;
+            const extraImagesCount = await ProductImageModel.countByProduct(id);
+            if (mainImageCount + extraImagesCount >= MAX_PRODUCT_IMAGES) {
+                return res.status(400).json({
+                    error: `Limite de ${MAX_PRODUCT_IMAGES} imagens por tenis atingido`,
+                    status: 400,
+                });
+            }
             const img = await ProductImageModel.add(id, image_url, sort_order || 0);
             await logAdminAction(req, {
                 action: 'product.image.add',
@@ -619,6 +755,46 @@ const ProductController = {
                 details: removed || {},
             });
             res.status(200).json({ message: 'Imagem removida', id: imageId });
+        } catch (err) {
+            next(err);
+        }
+    },
+
+    async uploadImage(req, res, next) {
+        try {
+            const { image, file_name } = req.body || {};
+            const { buffer, mimeType, extension } = parseUploadedImage(image);
+            assertImageSignature(buffer, mimeType);
+
+            const uploadDir = getProductUploadDir();
+            await fs.mkdir(uploadDir, { recursive: true });
+
+            const originalName = String(file_name || 'produto')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/\.[^.]+$/, '')
+                .replace(/[^a-zA-Z0-9_-]+/g, '-')
+                .replace(/^-+|-+$/g, '')
+                .toLowerCase()
+                .slice(0, 40) || 'produto';
+            const fileName = `${originalName}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.${extension}`;
+            const fullPath = path.join(uploadDir, fileName);
+
+            await fs.writeFile(fullPath, buffer);
+
+            const url = `/uploads/products/${fileName}`;
+            await logAdminAction(req, {
+                action: 'product.image.upload',
+                entityType: 'product_image',
+                details: {
+                    file: fileName,
+                    url,
+                    mimeType,
+                    bytes: buffer.length,
+                },
+            });
+
+            res.status(201).json({ url, image_url: url, file: fileName });
         } catch (err) {
             next(err);
         }

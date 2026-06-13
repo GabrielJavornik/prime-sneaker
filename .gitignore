@@ -6,3 +6,5 @@ backend/.env
 *.log
 .DS_Store
 backup_prime_sneaker.sql
+.audit-shots/
+.claude/settings.local.json

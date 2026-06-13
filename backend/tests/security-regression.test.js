@@ -49,6 +49,77 @@ function extractBetween(source, startPattern, endPattern) {
     return rest.slice(0, end);
 }
 
+function extractBalancedBlock(source, startPattern) {
+    const start = source.search(startPattern);
+    assert.notEqual(start, -1, `Nao encontrou inicio: ${startPattern}`);
+
+    const openBrace = source.indexOf('{', start);
+    assert.notEqual(openBrace, -1, `Nao encontrou chave de abertura: ${startPattern}`);
+
+    let depth = 0;
+    let quote = null;
+    let escaped = false;
+    let lineComment = false;
+    let blockComment = false;
+
+    for (let index = openBrace; index < source.length; index++) {
+        const char = source[index];
+        const next = source[index + 1];
+
+        if (lineComment) {
+            if (char === '\n') lineComment = false;
+            continue;
+        }
+
+        if (blockComment) {
+            if (char === '*' && next === '/') {
+                blockComment = false;
+                index++;
+            }
+            continue;
+        }
+
+        if (quote) {
+            if (escaped) {
+                escaped = false;
+            } else if (char === '\\') {
+                escaped = true;
+            } else if (char === quote) {
+                quote = null;
+            }
+            continue;
+        }
+
+        if (char === '/' && next === '/') {
+            lineComment = true;
+            index++;
+            continue;
+        }
+
+        if (char === '/' && next === '*') {
+            blockComment = true;
+            index++;
+            continue;
+        }
+
+        if (char === '\'' || char === '"' || char === '`') {
+            quote = char;
+            continue;
+        }
+
+        if (char === '{') depth++;
+
+        if (char === '}') {
+            depth--;
+            if (depth === 0) {
+                return source.slice(start, index + 1);
+            }
+        }
+    }
+
+    assert.fail(`Nao encontrou fim do bloco: ${startPattern}`);
+}
+
 function contrastRatio(hexA, hexB) {
     function toLinear(channel) {
         const value = channel / 255;
@@ -115,10 +186,11 @@ test('senhas simples sao bloqueadas em cadastro reset perfil e admin', () => {
 test('confirmacao manual de pagamento exige admin', () => {
     const routes = readBackendFile('src/routes/paymentRoutes.js');
     const controller = readBackendFile('src/controllers/paymentController.js');
-    const confirmBlock = extractBetween(controller, /async confirmPayment\(/, /\n    },\n};/);
+    const compactRoutes = routes.replace(/\s+/g, ' ');
+    const confirmBlock = extractBalancedBlock(controller, /async confirmPayment\(/);
 
     assert.match(routes, /requireAdmin/);
-    assert.match(routes, /router\.post\('\/confirm',\s*verifyToken,\s*requireAdmin,\s*PaymentController\.confirmPayment\)/);
+    assert.match(compactRoutes, /router\.post\('\/confirm', verifyToken, requireAdmin, PaymentController\.confirmPayment\)/);
     assert.match(confirmBlock, /!req\.user\s*\|\|\s*!req\.user\.isAdmin/);
     assert.doesNotMatch(confirmBlock, /order\.user_id\s*!==\s*userId\s*&&\s*!req\.user\.isAdmin/);
 });
@@ -131,7 +203,7 @@ test('fluxo de pedidos usa status aguardando_pagamento de ponta a ponta', () => 
     const adminReportController = readBackendFile('src/controllers/adminReportController.js');
     const emailService = readBackendFile('src/services/emailService.js');
     const sql = readBackendFile('database.sql');
-    const migration = readBackendFile('src/config/addMissingColumns.js');
+    const migration = readBackendFile('src/config/migrations.js');
     const updateStatusBlock = extractBetween(orderController, /async updateStatus\(/, /async cancelAllPending\(/);
 
     assert.match(statusService, /WAITING_PAYMENT:\s*'aguardando_pagamento'/);
@@ -210,7 +282,7 @@ test('checkout incrementa uso de cupom com limite dentro da transacao do pedido'
     const orderController = readBackendFile('src/controllers/orderController.js');
     const paymentController = readBackendFile('src/controllers/paymentController.js');
     const cartController = readBackendFile('src/controllers/cartController.js');
-    const migration = readBackendFile('src/config/addMissingColumns.js');
+    const migration = readBackendFile('src/config/migrations.js');
     const createOrderServiceBlock = extractBetween(orderPricingService, /async function createOrderWithPricing/, /module\.exports/);
 
     assert.match(couponModel, /async incrementUses\(id,\s*queryRunner = db\)/);
@@ -232,6 +304,75 @@ test('checkout incrementa uso de cupom com limite dentro da transacao do pedido'
     assert.match(migration, /UPDATE coupons SET uses_count = 0 WHERE uses_count IS NULL/);
 });
 
+test('carrinho persistido usa endpoints autenticados e banco por usuario', () => {
+    const routes = readBackendFile('src/routes/cartRoutes.js');
+    const controller = readBackendFile('src/controllers/cartController.js');
+    const model = readBackendFile('src/models/cartModel.js');
+    const sql = readBackendFile('database.sql');
+    const migration = readBackendFile('src/config/migrations.js');
+    const server = readBackendFile('server.js');
+    const apiJs = readWorkspaceFile('frontend/js/api.js');
+    const cartJs = readWorkspaceFile('frontend/js/cart.js');
+    const productJs = readWorkspaceFile('frontend/js/product.js');
+    const cartPageJs = readWorkspaceFile('frontend/js/cart-page.js');
+    const checkoutHtml = readWorkspaceFile('frontend/checkout.html');
+    const cartHtml = readWorkspaceFile('frontend/cart.html');
+    const productHtml = readWorkspaceFile('frontend/product.html');
+    const commonJs = readWorkspaceFile('frontend/js/common.js');
+    const loginHtml = readWorkspaceFile('frontend/login.html');
+    const registerHtml = readWorkspaceFile('frontend/register.html');
+    const swagger = readBackendFile('src/config/swagger.js');
+
+    assert.match(routes, /const \{ verifyToken \} = require\('\.\.\/middlewares\/authMiddleware'\)/);
+    assert.match(routes, /router\.get\('\/cart',\s*verifyToken,\s*CartController\.getCart\)/);
+    assert.match(routes, /router\.put\('\/cart\/items',\s*verifyToken,\s*CartController\.upsertItem\)/);
+    assert.match(routes, /router\.delete\('\/cart\/items\/:productId',\s*verifyToken,\s*CartController\.removeItem\)/);
+    assert.match(routes, /router\.delete\('\/cart',\s*verifyToken,\s*CartController\.clear\)/);
+    assert.match(routes, /router\.post\('\/cart',\s*CartController\.checkout\)/);
+
+    assert.match(controller, /CartModel\.findAllByUser\(req\.user\.id\)/);
+    assert.match(controller, /CartModel\.upsert/);
+    assert.match(controller, /CartModel\.remove/);
+    assert.match(controller, /CartModel\.clear/);
+    assert.match(controller, /orderPricingService\.calculateOrderPricing/);
+
+    assert.match(model, /assertCanStoreCartItem/);
+    assert.match(model, /available_stock/);
+    assert.match(model, /ON CONFLICT \(user_id, product_id, size\)/);
+    assert.match(model, /getProductSalePrice/);
+    assert.match(sql, /CREATE TABLE IF NOT EXISTS cart_items/);
+    assert.match(sql, /UNIQUE\(user_id,\s*product_id,\s*size\)/);
+    assert.match(sql, /idx_cart_items_user_id/);
+    assert.match(migration, /CREATE TABLE IF NOT EXISTS cart_items/);
+    assert.match(migration, /UNIQUE\(user_id,\s*product_id,\s*size\)/);
+    assert.match(server, /CREATE TABLE IF NOT EXISTS cart_items/);
+
+    assert.match(apiJs, /getCart:\s*\(\) => API\.request\('\/cart'\)/);
+    assert.match(apiJs, /upsertCartItem:\s*\(item\) => API\.request\('\/cart\/items'/);
+    assert.match(apiJs, /removeCartItem:\s*\(productId,\s*size = null\)/);
+    assert.match(apiJs, /clearCart:\s*\(\) => API\.request\('\/cart'/);
+    assert.match(cartJs, /async syncFromServer/);
+    assert.match(cartJs, /async mergeGuestCartToCurrentUser/);
+    assert.match(cartJs, /pushCartItemToServer/);
+    assert.match(cartJs, /async addItemAndSync/);
+    assert.match(cartJs, /await pushCartItemToServer\(item,\s*\{ throwOnError: true \}\)/);
+    assert.match(cartJs, /removeCartItemFromServer/);
+    assert.match(cartJs, /clearServerCart/);
+    assert.match(productJs, /await Cart\.addItemAndSync\(productToAdd,\s*selectedSize,\s*quantity\)/);
+    assert.match(productHtml, /js\/cart\.js\?v=6/);
+    assert.match(productHtml, /js\/product\.js\?v=\d+/);
+    assert.match(cartHtml, /js\/cart\.js\?v=6/);
+    assert.match(cartPageJs, /await Cart\.syncFromServer\(\)/);
+    assert.match(checkoutHtml, /await Cart\.syncFromServer\(\)/);
+    assert.match(commonJs, /Cart\.syncFromServer\(\)\.catch/);
+    assert.match(loginHtml, /await Cart\.mergeGuestCartToCurrentUser\(\)/);
+    assert.match(registerHtml, /await Cart\.mergeGuestCartToCurrentUser\(\)/);
+    assert.match(swagger, /name: 'Carrinho'/);
+    assert.match(swagger, /'\/api\/cart'/);
+    assert.match(swagger, /'\/api\/cart\/items'/);
+    assert.match(swagger, /'\/api\/cart\/items\/\{productId\}'/);
+});
+
 test('busca de catalogo nao filtra marca/genero/lancamento/outlet no navegador', () => {
     const source = readWorkspaceFile('frontend/js/search.js');
 
@@ -239,6 +380,18 @@ test('busca de catalogo nao filtra marca/genero/lancamento/outlet no navegador',
     assert.doesNotMatch(source, /needsClientSideFiltering/);
     assert.doesNotMatch(source, /productMatchesState/);
     assert.match(source, /return API\.search\(/);
+});
+
+test('publico infantil nao herda produtos unissex no menu e na busca', () => {
+    const productModel = readBackendFile('src/models/productModel.js');
+    const productController = readBackendFile('src/controllers/productController.js');
+    const commonJs = readWorkspaceFile('frontend/js/common.js');
+
+    assert.match(productController, /gender !== 'infantil' && row\.gender === 'unissex'/);
+    assert.match(productModel, /normalizedGender === 'infantil'/);
+    assert.match(productModel, /LOWER\(COALESCE\(gender, 'unissex'\)\) = \$\$\{i\}/);
+    assert.match(commonJs, /gender !== 'infantil' && productGender === 'unissex'/);
+    assert.match(commonJs, /primeSneaker:megaMenuFacets:v4/);
 });
 
 test('cupons e administradores so podem ser alterados por superadmin', () => {
@@ -251,6 +404,7 @@ test('cupons e administradores so podem ser alterados por superadmin', () => {
     assert.match(couponRoutes, /router\.put\('\/coupons\/:id',\s*verifyToken,\s*requireSuperAdmin,\s*CouponController\.update\)/);
     assert.match(couponRoutes, /router\.delete\('\/coupons\/:id',\s*verifyToken,\s*requireSuperAdmin,\s*CouponController\.remove\)/);
     assert.match(adminRoutes, /router\.post\('\/users',\s*verifyToken,\s*requireSuperAdmin,\s*UserController\.createAdmin\)/);
+    assert.match(adminRoutes, /router\.put\('\/users\/:id',\s*verifyToken,\s*requireSuperAdmin,\s*UserController\.updateAdmin\)/);
     assert.match(adminRoutes, /router\.delete\('\/users\/:id',\s*verifyToken,\s*requireSuperAdmin,\s*UserController\.deleteAdmin\)/);
 });
 
@@ -297,19 +451,86 @@ test('auditoria admin tem filtros e detalhes expansíveis', () => {
     assert.match(adminCss, /\.audit-details pre/);
 });
 
+test('auditoria admin usa paginacao de 10 em 10', () => {
+    const controller = readBackendFile('src/controllers/adminAuditLogController.js');
+    const model = readBackendFile('src/models/adminAuditLogModel.js');
+    const adminJs = readWorkspaceFile('frontend/js/admin.js');
+    const adminHtml = readWorkspaceFile('frontend/adm.html');
+
+    assert.match(model, /async count\(/);
+    assert.match(controller, /Number\(req\.query\.limit\) \|\| 10/);
+    assert.match(controller, /AdminAuditLogModel\.count\(filters\)/);
+    assert.match(controller, /pagination:\s*\{/);
+    assert.match(adminJs, /let _adminAuditPage = 1/);
+    assert.match(adminJs, /const ADMIN_AUDIT_PER_PAGE = 10/);
+    assert.match(adminJs, /API\.listAuditLogs\(getAdminAuthHeader\(\),\s*\{\s*\.\.\.getAuditFilters\(\),\s*limit:\s*ADMIN_AUDIT_PER_PAGE,\s*offset:\s*\(_adminAuditPage - 1\) \* ADMIN_AUDIT_PER_PAGE/s);
+    assert.match(adminJs, /renderAdminPagination\('audit-pagination',\s*pagination,\s*loadAuditLogs\)/);
+    assert.match(adminHtml, /id="audit-pagination"/);
+});
+
 test('superadmin pode criar admin normal ou outro superadmin', () => {
     const controller = readBackendFile('src/controllers/userController.js');
+    const model = readBackendFile('src/models/userModel.js');
     const adminJs = readWorkspaceFile('frontend/js/admin.js');
     const adminHtml = readWorkspaceFile('frontend/adm.html');
     const server = readBackendFile('server.js');
-    const createAdminBlock = extractBetween(controller, /async createAdmin\(/, /async deleteAdmin\(/);
+    const createAdminBlock = extractBetween(controller, /async createAdmin\(/, /async updateAdmin\(/);
 
     assert.match(createAdminBlock, /role,\s*isSuperAdmin,\s*is_super_admin/);
     assert.match(createAdminBlock, /role === 'superadmin'/);
+    assert.match(createAdminBlock, /const normalizedEmail = String\(email \|\| ''\)\.trim\(\)\.toLowerCase\(\)/);
+    assert.match(createAdminBlock, /const existing = await UserModel\.findByEmail\(normalizedEmail\)/);
+    assert.match(createAdminBlock, /UserModel\.promoteToAdmin\(existingUser\.id/);
+    assert.match(createAdminBlock, /err\.code === '23505'/);
+    assert.doesNotMatch(createAdminBlock, /Email ja cadastrado/);
     assert.match(createAdminBlock, /isSuperAdmin:\s*shouldCreateSuperAdmin/);
+    assert.match(model, /async promoteToAdmin\(id,\s*\{\s*name,\s*password,\s*isSuperAdmin = false\s*\}/);
+    assert.match(model, /is_admin = TRUE/);
+    assert.match(model, /is_super_admin = CASE WHEN is_super_admin = TRUE THEN TRUE ELSE \$3 END/);
     assert.match(adminHtml, /id="a-role"/);
     assert.match(adminJs, /isSuperAdmin:\s*role === 'superadmin'/);
     assert.match(server, /'admin@tenis\.com'/);
+});
+
+test('listagem de administradores nao envia clientes comuns', () => {
+    const controller = readBackendFile('src/controllers/userController.js');
+    const model = readBackendFile('src/models/userModel.js');
+    const listAdminsBlock = extractBetween(controller, /async listAdmins\(/, /async createAdmin\(/);
+
+    assert.match(listAdminsBlock, /UserModel\.findAdmins\(\)/);
+    assert.doesNotMatch(listAdminsBlock, /UserModel\.findAll\(\)/);
+    assert.match(model, /async findAdmins\(\)/);
+    assert.match(model, /WHERE is_admin = TRUE/);
+});
+
+test('superadmin pode editar administradores e superadmins com senha opcional', () => {
+    const controller = readBackendFile('src/controllers/userController.js');
+    const model = readBackendFile('src/models/userModel.js');
+    const adminJs = readWorkspaceFile('frontend/js/admin.js');
+    const adminHtml = readWorkspaceFile('frontend/adm.html');
+    const updateAdminBlock = extractBetween(controller, /async updateAdmin\(/, /async deleteAdmin\(/);
+
+    assert.match(updateAdminBlock, /UserModel\.updateAdmin\(adminId/);
+    assert.match(updateAdminBlock, /adminId === Number\(req\.user\.id\) && !shouldBeSuperAdmin/);
+    assert.match(updateAdminBlock, /passwordHash = await bcrypt\.hash\(password,\s*10\)/);
+    assert.match(updateAdminBlock, /action:\s*'admin\.update'/);
+    assert.match(model, /async updateAdmin\(id,\s*\{\s*name,\s*email,\s*password,\s*isSuperAdmin\s*\}/);
+    assert.match(model, /is_super_admin = \$3/);
+    assert.match(adminHtml, /id="a-id"/);
+    assert.match(adminHtml, /id="admin-form-submit"/);
+    assert.match(adminJs, /function openAdminEditForm\(admin\)/);
+    assert.match(adminJs, /method:\s*isEditing \? 'PUT' : 'POST'/);
+    assert.match(adminJs, /if \(password\) body\.password = password/);
+});
+
+test('duplicidade de email retorna mensagem limpa', () => {
+    const errorMiddleware = readBackendFile('src/middlewares/errorMiddleware.js');
+    const adminJs = readWorkspaceFile('frontend/js/admin.js');
+
+    assert.match(errorMiddleware, /err\.code === '23505'/);
+    assert.match(errorMiddleware, /users_email/);
+    assert.match(errorMiddleware, /error:\s*'Email ja cadastrado'/);
+    assert.doesNotMatch(adminJs, /setAdminFormAlert\('Erro: ' \+ err\.message\)/);
 });
 
 test('JWT nao usa segredo previsivel e Basic Auth legado fica desativado por padrao', () => {
@@ -355,6 +576,56 @@ test('CORS usa whitelist e Swagger nao fica publico por padrao', () => {
     assert.ok(swaggerRouteIndex > swaggerGuardIndex, 'Rota /api-docs nao pode ser registrada antes da validacao da flag');
     assert.match(envExample, /CORS_ORIGINS=http:\/\/localhost:3000,http:\/\/127\.0\.0\.1:3000/);
     assert.match(envExample, /ENABLE_API_DOCS=false/);
+});
+
+test('Swagger documenta rotas operacionais de pedidos pagamentos wishlist enderecos e admin', () => {
+    const swagger = readBackendFile('src/config/swagger.js');
+
+    ['Pedidos', 'Pagamentos', 'Wishlist', 'Enderecos', 'Admin'].forEach(tag => {
+        assert.match(swagger, new RegExp(`name: '${tag}'`));
+    });
+
+    [
+        'CheckoutRequest',
+        'CheckoutResponse',
+        'PixInfo',
+        'Order',
+        'OrderItem',
+        'Address',
+        'WishlistItem',
+        'AdminSession',
+        'AdminAuditLog',
+    ].forEach(schema => {
+        assert.match(swagger, new RegExp(`${schema}: \\{`));
+    });
+
+    [
+        '/api/payments/checkout',
+        '/api/payments/pix/{orderId}',
+        '/api/payments/confirm',
+        '/api/orders/my-orders',
+        '/api/orders/{id}',
+        '/api/orders/admin/all',
+        '/api/orders/{id}/status',
+        '/api/wishlist',
+        '/api/wishlist/add',
+        '/api/wishlist/check',
+        '/api/wishlist/count/total',
+        '/api/addresses',
+        '/api/addresses/{id}',
+        '/api/addresses/{id}/default',
+        '/api/admin/session',
+        '/api/admin/users',
+        '/api/admin-reports/order-notifications',
+        '/api/admin-reports/low-stock',
+        '/api/admin-audit-logs',
+    ].forEach(route => {
+        assert.match(swagger, new RegExp(`'${route.replace(/[{}]/g, '\\$&')}'`));
+    });
+
+    assert.match(swagger, /security: \[\{ bearerAuth: \[\] \}\]/);
+    assert.match(swagger, /Apenas superadmin pode consultar auditoria/);
+    assert.match(swagger, /Uso restrito a administradores/);
 });
 
 test('backend envia CSP e headers de seguranca contra XSS', () => {
@@ -438,6 +709,86 @@ test('perfil pedidos e wishlist escapam dados persistidos antes de usar innerHTM
     assert.doesNotMatch(checkout, /\$\{item\.name\}/);
 });
 
+test('Pix usa configuracao por ambiente e nao chave fixa no codigo', () => {
+    const pixService = readBackendFile('src/services/pixService.js');
+    const checkout = readWorkspaceFile('frontend/checkout.html');
+    const envExample = readBackendFile('.env.example');
+
+    assert.match(pixService, /getRequiredPixEnv\('PIX_KEY'\)/);
+    assert.match(pixService, /process\.env\.PIX_MERCHANT_NAME/);
+    assert.match(pixService, /process\.env\.PIX_MERCHANT_CITY/);
+    assert.doesNotMatch(pixService, /chave:\s*['"][0-9]{11,14}['"]/);
+    assert.doesNotMatch(checkout, /pix-key-display[^<]*>\d{11,14}</);
+    assert.doesNotMatch(checkout, /const key = ['"][^'"]+['"];/);
+    assert.match(checkout, /pixData\.copiaECola/);
+    assert.match(checkout, /function mostrarPaginaPagamentoPix/);
+    assert.match(checkout, /requestAnimationFrame\(\(\) => \{/);
+    assert.match(checkout, /window\.scrollTo\(\{\s*top:\s*0,\s*left:\s*0,\s*behavior:\s*'auto'\s*\}\)/);
+    assert.match(envExample, /^PIX_KEY=sua_chave_pix_aqui$/m);
+    assert.doesNotMatch(envExample, /PIX_KEY=\d{11,14}/);
+});
+
+test('previa PIX nao cria pedido antes da confirmacao do cliente', () => {
+    const routes = readBackendFile('src/routes/paymentRoutes.js');
+    const paymentController = readBackendFile('src/controllers/paymentController.js');
+    const checkout = readWorkspaceFile('frontend/checkout.html');
+    const previewBlock = extractBalancedBlock(paymentController, /async previewPix\(/);
+    const processPaymentBlock = extractBalancedBlock(checkout, /async function processPayment\(/);
+    const confirmPixBlock = extractBalancedBlock(checkout, /async function irParaWhatsAppComProvante\(/);
+    const createOrderBlock = extractBalancedBlock(checkout, /async function createOrder\(/);
+
+    assert.match(routes, /router\.post\('\/pix-preview',\s*verifyToken,\s*PaymentController\.previewPix\)/);
+    assert.match(previewBlock, /orderPricingService\.calculateOrderPricing\(items,\s*couponCode\)/);
+    assert.match(previewBlock, /pixService\.generateQRCode\(pricing\.total/);
+    assert.doesNotMatch(previewBlock, /createOrderWithPricing|OrderModel\.create|PixTransactionModel\.create|incrementUses|decrementCheckoutStock/);
+    assert.match(checkout, /fetch\('\/api\/payments\/pix-preview'/);
+    assert.match(processPaymentBlock, /window\._pixData\s*=\s*await gerarPixPreviewBackend\(\)/);
+    assert.doesNotMatch(processPaymentBlock, /const\s+okPix\s*=\s*await criarPedidoBackend\(\)/);
+    assert.match(confirmPixBlock, /const\s+okPix\s*=\s*await criarPedidoBackend\(\)/);
+    assert.match(checkout, /function sairDoPixParaHome\(\)/);
+    assert.match(checkout, /window\._checkoutAddress\s*=\s*endereco/);
+    assert.match(checkout, /function getCheckoutAddressForOrder\(\)/);
+    assert.match(createOrderBlock, /const addressData = getCheckoutAddressForOrder\(\)/);
+    assert.doesNotMatch(createOrderBlock, /document\.getElementById\('checkout-cep'\)\.value/);
+});
+
+test('home e busca exibem avaliacoes reais vindas do backend', () => {
+    const productModel = readBackendFile('src/models/productModel.js');
+    const commonJs = readWorkspaceFile('frontend/js/common.js');
+    const homeJs = readWorkspaceFile('frontend/js/home.js');
+    const searchJs = readWorkspaceFile('frontend/js/search.js');
+
+    assert.match(productModel, /AVG\(r\.rating\)::numeric/);
+    assert.match(productModel, /AS average_rating/);
+    assert.match(productModel, /AS total_reviews/);
+    assert.match(commonJs, /function renderProductReviewSummary/);
+    assert.match(commonJs, /average_rating/);
+    assert.match(commonJs, /total_reviews/);
+    assert.match(homeJs, /renderProductReviewSummary\(p\)/);
+    assert.match(searchJs, /renderProductReviewSummary\(p\)/);
+    assert.doesNotMatch(homeJs, /Math\.random/);
+    assert.doesNotMatch(searchJs, /Math\.random/);
+});
+
+test('home usa imagens reais do catalogo nos cards de categoria', () => {
+    const homeHtml = readWorkspaceFile('frontend/index.html');
+    const homeJs = readWorkspaceFile('frontend/js/home.js');
+    const style = readWorkspaceFile('frontend/css/style.css');
+
+    assert.match(homeHtml, /data-category-card="esportivo"/);
+    assert.match(homeHtml, /data-category-card="casual"/);
+    assert.match(homeHtml, /data-category-card="formal"/);
+    assert.match(homeHtml, /data-category-card="trekking"/);
+    assert.match(homeHtml, /js\/home\.js\?v=\d+/);
+    assert.match(homeJs, /function loadHomeCategoryCards|loadHomeCategoryCards/);
+    assert.match(homeJs, /API\.search\(\{[\s\S]*categoria:\s*category[\s\S]*limit:\s*12/);
+    assert.match(homeJs, /String\(item\?\.gender \|\| 'unissex'\)\.toLowerCase\(\) !== 'infantil'/);
+    assert.match(homeJs, /setCategoryCardImage\(card,\s*imageUrl\)/);
+    assert.match(homeJs, /has-product-image/);
+    assert.doesNotMatch(style, /images\.unsplash\.com\/photo-1542291026/);
+    assert.doesNotMatch(style, /images\.unsplash\.com\/photo-1525966222134/);
+});
+
 test('troca de senha busca hash sem expor password no perfil publico', () => {
     const userModel = readBackendFile('src/models/userModel.js');
     const userController = readBackendFile('src/controllers/userController.js');
@@ -474,14 +825,27 @@ test('pedido usa o mesmo preco promocional do carrinho para produtos outlet', ()
 });
 
 test('painel admin valida token no backend antes de renderizar areas sensiveis', () => {
+    const app = readBackendFile('src/app.js');
+    const emailService = readBackendFile('src/services/emailService.js');
     const adminRoutes = readBackendFile('src/routes/adminRoutes.js');
     const userController = readBackendFile('src/controllers/userController.js');
     const adminJs = readWorkspaceFile('frontend/js/admin.js');
     const admHtml = readWorkspaceFile('frontend/adm.html');
     const adminLoginHtml = readWorkspaceFile('frontend/admin-login.html');
+    const adminHtml = readWorkspaceFile('frontend/admin.html');
+    const adminIndexHtml = readWorkspaceFile('frontend/admin/index.html');
     const verifyIndex = adminJs.indexOf('await verifyAdminSession();');
     const showPanelIndex = adminJs.indexOf('showPanel();', verifyIndex);
 
+    assert.match(app, /app\.get\(\['\/admin',\s*'\/admin\/'\]/);
+    assert.match(app, /res\.redirect\(302,\s*'\/admin-login\.html'\)/);
+    assert.match(adminHtml, /window\.location\.replace\('admin-login\.html'\)/);
+    assert.match(adminHtml, /http-equiv="refresh" content="0; url=admin-login\.html"/);
+    assert.match(adminIndexHtml, /window\.location\.replace\('\/admin-login\.html'\)/);
+    assert.match(adminIndexHtml, /http-equiv="refresh" content="0; url=\/admin-login\.html"/);
+    assert.doesNotMatch(adminHtml, /404|P.gina N.o Encontrada|index\.html/);
+    assert.match(emailService, /const adminPanelUrl = `\$\{baseUrl\}\/admin`/);
+    assert.doesNotMatch(emailService, /https:\/\/localhost:3000\/admin\.html/);
     assert.match(adminRoutes, /router\.get\('\/session',\s*verifyToken,\s*UserController\.adminSession\)/);
     assert.match(userController, /async adminSession\(/);
     assert.match(userController, /UserModel\.findById\(req\.user\.id\)/);
@@ -497,6 +861,32 @@ test('painel admin valida token no backend antes de renderizar areas sensiveis',
     assert.doesNotMatch(admHtml, /if\s*\(!adminToken\s*\|\|\s*!adminUser\)/);
     assert.match(adminLoginHtml, /fetch\('\/api\/admin\/session'/);
     assert.doesNotMatch(adminLoginHtml, /adminUser\s*&&\s*adminUser\.is_admin/);
+    assert.doesNotMatch(adminLoginHtml, /Notifications\.error/);
+    assert.doesNotMatch(adminLoginHtml, /js\/notifications\.js/);
+    assert.match(adminLoginHtml, /alert\.scrollIntoView\(\{\s*block:\s*'nearest'/);
+});
+
+test('frontend expoe aliases de URL pedidos no enunciado', () => {
+    const app = readBackendFile('src/app.js');
+    const productHtml = readWorkspaceFile('frontend/product.html');
+    const productJs = readWorkspaceFile('frontend/js/product.js');
+    const searchJs = readWorkspaceFile('frontend/js/search.js');
+    const commonJs = readWorkspaceFile('frontend/js/common.js');
+
+    assert.match(app, /app\.get\(\['\/busca',\s*'\/busca\/'\]/);
+    assert.match(app, /sendFrontendPage\(res,\s*'search\.html'\)/);
+    assert.match(app, /app\.get\(\['\/carrinho',\s*'\/carrinho\/'\]/);
+    assert.match(app, /sendFrontendPage\(res,\s*'cart\.html'\)/);
+    assert.match(app, /app\.get\(\['\/p\/:slug\/:id',\s*'\/p\/:id'\]/);
+    assert.match(app, /sendFrontendPage\(res,\s*'product\.html'\)/);
+    assert.match(productHtml, /<base href="\/" \/>/);
+    assert.match(productJs, /function getProductIdFromUrl\(/);
+    assert.match(productJs, /parts\[0\] !== 'p'/);
+    assert.match(searchJs, /params\.get\('query'\)/);
+    assert.match(searchJs, /params\.get\('cat'\)/);
+    assert.match(commonJs, /function buildProductUrl\(/);
+    assert.match(commonJs, /return `\/busca/);
+    assert.match(commonJs, /href="\/carrinho"/);
 });
 
 test('painel admin nao carrega Chart.js de CDN sem pinning local', () => {
@@ -623,6 +1013,21 @@ test('admin produtos e cupons usam paginacao de 10 em 10', () => {
     assert.match(adminHtml, /id="coupons-pagination"/);
 });
 
+test('estoque de produtos no admin usa soma real por tamanho', () => {
+    const productModel = readBackendFile('src/models/productModel.js');
+    const productController = readBackendFile('src/controllers/productController.js');
+    const adminJs = readWorkspaceFile('frontend/js/admin.js');
+
+    assert.match(productModel, /SELECT SUM\(ps\.stock\)::int/);
+    assert.match(productModel, /AS stock/);
+    assert.match(productModel, /NULLIF\(TRIM\(COALESCE\(products\.sizes, ''\)\), ''\) IS NULL/);
+    assert.match(productController, /const totalStock = stock !== undefined \? Number\(stock\) : 0/);
+    assert.match(productController, /stock:\s*totalStock/);
+    assert.match(productController, /Math\.floor\(totalStock \/ sizeList\.length\)/);
+    assert.match(adminJs, /stock:\s*sizeStocks\.reduce\(\(sum,\s*s\) => sum \+ s\.stock,\s*0\),/);
+    assert.doesNotMatch(adminJs, /sizeStocks\.reduce\(\(sum,\s*s\) => sum \+ s\.stock,\s*0\) \|\| 10/);
+});
+
 test('admin produtos tem drawer, filtros e ordenacao server-side', () => {
     const productController = readBackendFile('src/controllers/productController.js');
     const productModel = readBackendFile('src/models/productModel.js');
@@ -638,18 +1043,195 @@ test('admin produtos tem drawer, filtros e ordenacao server-side', () => {
     assert.match(adminHtml, /id="admin-product-sort"/);
     assert.match(adminHtml, /id="product-form-backdrop"/);
     assert.match(adminHtml, /admin-product-drawer/);
+    assert.match(adminHtml, /admin-product-form-section/);
+    assert.doesNotMatch(adminHtml, /Use o mesmo grupo/);
     assert.match(adminJs, /function getAdminProductFilters/);
     assert.match(adminJs, /\.\.\.getAdminProductFilters\(\)/);
     assert.match(adminJs, /function applyAdminProductFilters/);
     assert.match(adminJs, /function resetAdminProductFilters/);
     assert.match(adminJs, /function closeProductForm/);
     assert.match(adminCss, /\.admin-product-drawer/);
+    assert.match(adminCss, /\.admin-product-form-section/);
     assert.match(productController, /query:\s*req\.query\.q \|\| req\.query\.query/);
     assert.match(productController, /sortBy:\s*req\.query\.sortBy \|\| 'recent'/);
     assert.match(productModel, /price_asc/);
     assert.match(productModel, /price_desc/);
     assert.match(productModel, /stock_asc/);
     assert.match(productModel, /stock_desc/);
+});
+
+test('produto suporta variacoes de cor agrupadas por modelo', () => {
+    const productController = readBackendFile('src/controllers/productController.js');
+    const productModel = readBackendFile('src/models/productModel.js');
+    const validators = readBackendFile('src/utils/validators.js');
+    const sql = readBackendFile('database.sql');
+    const migration = readBackendFile('src/config/migrations.js');
+    const server = readBackendFile('server.js');
+    const adminJs = readWorkspaceFile('frontend/js/admin.js');
+    const adminHtml = readWorkspaceFile('frontend/adm.html');
+    const productJs = readWorkspaceFile('frontend/js/product.js');
+    const style = readWorkspaceFile('frontend/css/style.css');
+
+    assert.match(sql, /model_group VARCHAR\(120\)/);
+    assert.match(sql, /idx_products_model_group_lower/);
+    assert.match(migration, /ADD COLUMN IF NOT EXISTS model_group VARCHAR\(120\)/);
+    assert.match(server, /ADD COLUMN IF NOT EXISTS model_group VARCHAR\(120\)/);
+    assert.match(validators, /isValidModelGroup/);
+    assert.match(productModel, /function getComparableModelName/);
+    assert.match(productModel, /function areSameModelVariants/);
+    assert.match(productModel, /async findColorVariants\(product\)/);
+    assert.match(productModel, /LOWER\(TRIM\(model_group\)\) = LOWER\(TRIM\(\$\$\{params\.length\}\)\)/);
+    assert.match(productModel, /LOWER\(TRIM\(name\)\) = LOWER\(TRIM\(\$\$\{nameParam\}\)\)/);
+    assert.match(productModel, /lookupTerms = getModelLookupTerms\(product\)/);
+    assert.match(productModel, /areSameModelVariants\(product,\s*row\)/);
+    assert.match(productModel, /variantsByColor/);
+    assert.doesNotMatch(productModel, /knownFamilies/);
+    assert.match(productModel, /model_group/);
+    assert.doesNotMatch(productModel, /catalogModelKeySql/);
+    assert.doesNotMatch(productModel, /variant_rank = 1/);
+    assert.match(productModel, /SELECT COUNT\(\*\) FROM products \$\{whereSql\}/);
+    assert.match(productController, /product\.color_variants = await ProductModel\.findColorVariants\(product\)/);
+    assert.match(productController, /function normalizeModelGroupInput/);
+    assert.match(productController, /model_group:\s*normalizeModelGroupInput\(model_group,\s*name\)/);
+    assert.match(productController, /data\.model_group = normalizeModelGroupInput\(req\.body\.model_group,\s*data\.name \|\| existing\.name\)/);
+    assert.match(migration, /SET model_group = TRIM\(name\)/);
+    assert.match(adminHtml, /id="p-model-group"/);
+    assert.match(adminJs, /document\.getElementById\('p-model-group'\)\.value = p\.model_group \|\| ''/);
+    assert.match(adminJs, /model_group:\s*document\.getElementById\('p-model-group'\)\.value\.trim\(\)/);
+    assert.match(productJs, /function renderColorVariants/);
+    assert.match(productJs, /function buildProductGalleryImages/);
+    assert.match(productJs, /images\.slice\(0,\s*4\)/);
+    assert.match(style, /\.pdp-gallery\.is-grid/);
+    assert.match(style, /\.pdp-gallery-tile/);
+    assert.match(productJs, /function openProductImageLightbox/);
+    assert.match(productJs, /function toggleProductImageLightboxZoom/);
+    assert.match(productJs, /data-lightbox-zoom/);
+    assert.match(productJs, /transformOrigin = `\$\{x\}% \$\{y\}%`/);
+    assert.match(productJs, /product-image-lightbox/);
+    assert.match(productJs, /openProductImageLightbox\(Number\(tile\.dataset\.imageIndex\)/);
+    assert.match(style, /\.pdp-gallery-tile::before/);
+    assert.match(style, /cursor:\s*zoom-in/);
+    assert.match(style, /\.product-image-lightbox/);
+    assert.match(style, /\.product-image-lightbox\.is-zoomed \.product-image-lightbox-dialog img/);
+    assert.match(style, /body\.product-lightbox-open/);
+    assert.match(productJs, /product\?\.color_variants/);
+    assert.match(productJs, /Cores e modelos/);
+    assert.match(productJs, /Cor selecionada/);
+    assert.match(style, /\.pdp-color-variants/);
+    assert.match(style, /\.pdp-color-variant\.is-active/);
+});
+
+test('admin permite upload local de fotos de produtos', () => {
+    const app = readBackendFile('src/app.js');
+    const productController = readBackendFile('src/controllers/productController.js');
+    const productImageModel = readBackendFile('src/models/productImageModel.js');
+    const productRoutes = readBackendFile('src/routes/productRoutes.js');
+    const apiJs = readWorkspaceFile('frontend/js/api.js');
+    const adminJs = readWorkspaceFile('frontend/js/admin.js');
+    const adminHtml = readWorkspaceFile('frontend/adm.html');
+    const adminCss = readWorkspaceFile('frontend/css/admin-panel.css');
+    const productFormSubmitBlock = extractBetween(adminJs, /document\.getElementById\('product-form'\)\.addEventListener\('submit'/, /document\.getElementById\('p-description'\)\?\.addEventListener/);
+
+    assert.match(app, /express\.json\(\{\s*limit:\s*'8mb'\s*\}\)/);
+    assert.match(app, /app\.use\('\/uploads',\s*express\.static\(uploadsPath\)\)/);
+    assert.match(productController, /MAX_UPLOAD_IMAGE_BYTES = 5 \* 1024 \* 1024/);
+    assert.match(productController, /MAX_PRODUCT_IMAGES = 4/);
+    assert.match(productController, /ProductImageModel\.countByProduct/);
+    assert.match(productImageModel, /async countByProduct/);
+    assert.match(productController, /function parseUploadedImage/);
+    assert.match(productController, /function assertImageSignature/);
+    assert.match(productController, /'uploads', 'products'/);
+    assert.match(productController, /await fs\.writeFile\(fullPath,\s*buffer\)/);
+    assert.match(productController, /async uploadImage\(req,\s*res,\s*next\)/);
+    assert.match(productRoutes, /router\.post\('\/products\/images\/upload',\s*basicAuthAdmin,\s*ProductController\.uploadImage\)/);
+    assert.match(apiJs, /uploadProductImage/);
+    assert.match(adminHtml, /id="p-image-file"/);
+    assert.match(adminHtml, /id="gallery-new-file"/);
+    assert.match(adminHtml, /id="photo-add-panel"/);
+    assert.match(adminHtml, /id="product-form-alert"/);
+    assert.match(adminHtml, /id="p-description"[^>]*maxlength="500"/);
+    assert.match(adminHtml, /id="p-description-count"/);
+    assert.doesNotMatch(adminHtml, /id="gallery-new-file"[^>]*multiple/);
+    assert.match(adminJs, /function uploadLocalProductImage/);
+    assert.match(adminJs, /function setProductFormAlert/);
+    assert.match(adminJs, /function updateProductDescriptionCount/);
+    assert.match(adminJs, /A descri\\u00e7\\u00e3o tem/);
+    assert.match(adminJs, /setProductFormAlert\(err\.message/);
+    assert.doesNotMatch(productFormSubmitBlock, /toast\('Erro:/);
+    assert.doesNotMatch(productFormSubmitBlock, /toast\('Adicione tamanhos/);
+    assert.doesNotMatch(productFormSubmitBlock, /toast\(`O produto pode ter/);
+    assert.match(productFormSubmitBlock, /setProductFormAlert\('Adicione tamanhos e estoque antes de criar o produto\.'/);
+    assert.match(productFormSubmitBlock, /setProductFormAlert\(`O produto pode ter no máximo/);
+    assert.match(adminJs, /function clearProductPhotoState/);
+    assert.match(adminJs, /mainImageInput\.value = ''/);
+    assert.match(adminJs, /mainImageInput\.defaultValue = ''/);
+    assert.match(adminJs, /clearProductPhotoState\(\);[\s\S]*document\.getElementById\('product-form-title'\)\.textContent = 'Cadastrar novo/);
+    assert.match(adminJs, /MAX_PRODUCT_IMAGES = 4/);
+    assert.match(adminJs, /function savePendingGalleryImages/);
+    assert.match(adminJs, /API\.uploadProductImage/);
+    assert.match(adminJs, /addProductPhotoFromCurrentInput/);
+    assert.match(adminJs, /addGalleryImageFromFile/);
+    assert.match(adminJs, /_isProductFormSaving/);
+    assert.match(adminJs, /if \(_isProductFormSaving\) return/);
+    assert.match(adminJs, /setProductFormSaving\(true\)/);
+    assert.match(adminJs, /finally\s*{\s*setProductFormSaving\(false\)/);
+    assert.match(adminJs, /function formatAdminCategoryLabel/);
+    assert.match(adminJs, /Casual[\s\S]*Esportivo[\s\S]*Formal[\s\S]*Trekking/);
+    assert.match(adminJs, /admin-product-name-cell/);
+    assert.match(adminJs, /admin-category-pill/);
+    assert.match(adminCss, /\.admin-image-upload-row/);
+    assert.match(adminCss, /\.admin-form-feedback/);
+    assert.match(adminCss, /\.admin-field-hint\.is-danger/);
+    assert.match(adminCss, /\.admin-file-input/);
+    assert.match(adminCss, /\.admin-product-form\.is-saving/);
+    assert.match(adminCss, /#products-table \.admin-product-name[\s\S]*overflow-wrap:\s*anywhere/);
+    assert.match(adminCss, /\.admin-category-casual[\s\S]*\.admin-category-esportivo[\s\S]*\.admin-category-formal[\s\S]*\.admin-category-trekking/);
+});
+
+test('exclusao de produto usa modal de confirmacao visual', () => {
+    const adminJs = readWorkspaceFile('frontend/js/admin.js');
+    const adminCss = readWorkspaceFile('frontend/css/admin-panel.css');
+    const productModel = readBackendFile('src/models/productModel.js');
+    const productController = readBackendFile('src/controllers/productController.js');
+    const migration = readBackendFile('src/config/migrations.js');
+    const server = readBackendFile('server.js');
+    const deleteProductBlock = extractBetween(adminJs, /async function deleteProduct\(id\)/, /\/\* ============================================================\s+Promo/);
+
+    assert.match(deleteProductBlock, /showConfirmModal\(/);
+    assert.match(deleteProductBlock, /Excluir produto/);
+    assert.match(deleteProductBlock, /Essa a\\u00e7\\u00e3o remove o produto do cat\\u00e1logo/);
+    assert.match(deleteProductBlock, /danger:\s*true/);
+    assert.doesNotMatch(deleteProductBlock, /confirm\(/);
+    assert.match(deleteProductBlock, /toast\(response\.message \|\| 'Produto exclu\\u00eddo!'/);
+    assert.match(productModel, /ALTER TABLE products ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP|archived_at IS NULL/);
+    assert.match(productModel, /SELECT EXISTS \(SELECT 1 FROM order_items WHERE product_id = \$1\) AS has_orders/);
+    assert.match(productModel, /SET archived_at = CURRENT_TIMESTAMP/);
+    assert.match(productModel, /RETURNING id, TRUE AS archived/);
+    assert.match(productController, /Produto arquivado e removido do catalogo/);
+    assert.match(migration, /ALTER TABLE products ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP/);
+    assert.match(server, /ALTER TABLE products ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP/);
+    assert.match(adminCss, /\.confirm-modal-content\.is-danger-confirm h3/);
+    assert.match(adminCss, /\.confirm-modal-content\.is-danger-confirm \.confirm-modal-details/);
+});
+
+test('frontend nao usa notificacoes flutuantes e bloqueia duplo clique no carrinho', () => {
+    const notifications = readWorkspaceFile('frontend/js/notifications.js');
+    const apiJs = readWorkspaceFile('frontend/js/api.js');
+    const commonJs = readWorkspaceFile('frontend/js/common.js');
+    const productJs = readWorkspaceFile('frontend/js/product.js');
+    const style = readWorkspaceFile('frontend/css/style.css');
+
+    assert.doesNotMatch(notifications, /position:\s*fixed|top:\s*90px|right:\s*20px/);
+    assert.match(notifications, /document\.getElementById\('toast-container'\)\?\.remove\(\)/);
+    assert.match(notifications, /id = 'site-feedback'/);
+    assert.match(notifications, /site-feedback-message/);
+    assert.match(apiJs, /document\.getElementById\('site-feedback'\)/);
+    assert.match(commonJs, /document\.getElementById\('site-feedback'\)/);
+    assert.match(productJs, /let cartActionLocked = false/);
+    assert.match(productJs, /if \(cartActionLocked\) return false/);
+    assert.match(productJs, /setProductActionButtonsBusy\(true\)/);
+    assert.match(productJs, /releaseCartActionLock\(\)/);
+    assert.match(style, /\.pdp-modern-details \.btn-buy:disabled/);
 });
 
 test('admin cupons tem drawer, validacao inline e badges de status', () => {
@@ -690,6 +1272,26 @@ test('promocoes newsletter envia para inscritos com preview destinatarios e conf
     assert.match(adminCss, /\.admin-promotion-layout/);
     assert.match(adminCss, /\.admin-promotion-preview-card/);
     assert.doesNotMatch(adminCss, /admin-promotion-test-button|admin-promotion-safety/);
+});
+
+test('newsletter publica mostra confirmacao inline ao inscrever', () => {
+    const indexHtml = readWorkspaceFile('frontend/index.html');
+    const style = readWorkspaceFile('frontend/css/style.css');
+    const newsletterRoutes = readBackendFile('src/routes/newsletterRoutes.js');
+    const newsletterBlock = extractBetween(indexHtml, /async function inscreverNewsletter/, /<\/script>/);
+
+    assert.match(indexHtml, /id="newsletter-feedback"/);
+    assert.match(indexHtml, /aria-live="polite"/);
+    assert.match(newsletterBlock, /already_subscribed:\s*'Inscri\\u00e7\\u00e3o j\\u00e1 feita! Voc\\u00ea j\\u00e1 receber\\u00e1 os e-mails das promo\\u00e7\\u00f5es\.'/);
+    assert.match(newsletterBlock, /feedback\.textContent = messages\[data\.status\] \|\| messages\.subscribed/);
+    assert.match(newsletterBlock, /feedback\.classList\.add\('is-success'\)/);
+    assert.match(newsletterBlock, /feedback\.classList\.add\('is-error'\)/);
+    assert.doesNotMatch(newsletterBlock, /Notifications\.(success|error)/);
+    assert.match(newsletterRoutes, /SELECT id,\s*active[\s\S]*FROM newsletter_subscribers[\s\S]*WHERE email = \$1/);
+    assert.match(newsletterRoutes, /status:\s*'already_subscribed'/);
+    assert.match(newsletterRoutes, /Inscricao ja feita\. Voce ja recebera os emails das promocoes\./);
+    assert.match(style, /\.newsletter-feedback\.is-success/);
+    assert.match(style, /\.newsletter-feedback\.is-error/);
 });
 
 test('admin clientes tem busca resumo e atalho para historico de pedidos', () => {
@@ -733,7 +1335,7 @@ test('painel admin tem foco visivel global para navegacao por teclado', () => {
     const adminHtml = readWorkspaceFile('frontend/adm.html');
     const adminCss = readWorkspaceFile('frontend/css/admin-panel.css');
 
-    assert.match(adminHtml, /admin-panel\.css\?v=16/);
+    assert.match(adminHtml, /admin-panel\.css\?v=36/);
     assert.match(adminCss, /--admin-focus-color/);
     assert.match(adminCss, /--admin-focus-shadow/);
     assert.match(adminCss, /\.admin-sidebar button,[\s\S]*\.admin-table-wrapper,[\s\S]*\.admin-pagination button,[\s\S]*\.confirm-btn-no[\s\S]*:focus-visible/);
@@ -748,8 +1350,9 @@ test('painel admin usa paleta operacional recomendada', () => {
     const adminCss = readWorkspaceFile('frontend/css/admin-panel.css');
     const adminJs = readWorkspaceFile('frontend/js/admin.js');
 
-    assert.match(adminHtml, /admin-panel\.css\?v=16/);
-    assert.match(adminHtml, /js\/admin\.js\?v=35/);
+    assert.match(adminHtml, /admin-panel\.css\?v=36/);
+    assert.match(adminHtml, /js\/admin\.js\?v=\d+/);
+    assert.match(adminJs, /primeSneaker:megaMenuFacets:v4/);
     assert.match(adminCss, /--admin-bg:\s*#F5F7FA/);
     assert.match(adminCss, /--admin-surface:\s*#FFFFFF/);
     assert.match(adminCss, /--admin-sidebar:\s*#0F172A/);
@@ -794,9 +1397,9 @@ test('dourado nao e usado como texto pequeno em fundo claro', () => {
     assert.doesNotMatch(cartJs, /background:\s*var\(--accent\);\s*color:\s*(white|#fff)/);
     assert.doesNotMatch(cartJs, /color:\s*var\(--accent\)/);
     assert.doesNotMatch(adminJs, /color:\s*var\(--accent\);\s*font-size/);
-    assert.match(indexHtml, /css\/style\.css\?v=31/);
-    assert.match(productHtml, /css\/style\.css\?v=31/);
-    assert.match(cartHtml, /css\/style\.css\?v=31/);
+    assert.match(indexHtml, /css\/style\.css\?v=35/);
+    assert.match(productHtml, /css\/style\.css\?v=38/);
+    assert.match(cartHtml, /css\/style\.css\?v=32/);
 });
 
 test('vermelho de perigo tem contraste AA com texto branco', () => {
@@ -841,12 +1444,39 @@ test('azul informativo tem contraste AA com texto branco', () => {
     assert.doesNotMatch(frontendSources, /#3b82f6|rgba?\(59,\s*130,\s*246/i);
 });
 
+test('recuperacao admin so redefine senha de admin ou superadmin', () => {
+    const authRoutes = readWorkspaceFile('backend/src/routes/authRoutes.js');
+    const authController = readWorkspaceFile('backend/src/controllers/authController.js');
+    const emailService = readWorkspaceFile('backend/src/services/emailService.js');
+    const userModel = readWorkspaceFile('backend/src/models/userModel.js');
+    const adminLoginHtml = readWorkspaceFile('frontend/admin-login.html');
+    const adminResetHtml = readWorkspaceFile('frontend/admin-reset-password.html');
+
+    assert.match(authRoutes, /router\.post\('\/admin\/forgot-password',\s*AuthController\.forgotAdminPassword\)/);
+    assert.match(authRoutes, /router\.get\('\/admin\/verify-reset-token',\s*AuthController\.verifyAdminResetToken\)/);
+    assert.match(authRoutes, /router\.get\('\/admin\/verify-reset-token\/:token',\s*AuthController\.verifyAdminResetToken\)/);
+    assert.match(authRoutes, /router\.post\('\/admin\/reset-password',\s*AuthController\.resetAdminPassword\)/);
+    assert.match(authController, /function isAdminAccount\(user\)[\s\S]*user\.is_admin === true \|\| user\.is_super_admin === true/);
+    assert.match(authController, /function normalizeResetToken\(token\)/);
+    assert.match(authController, /async forgotAdminPassword\(req,\s*res,\s*next\)[\s\S]*if \(isAdminAccount\(user\)\)[\s\S]*sendAdminPasswordResetEmail\(user,\s*resetToken\)/);
+    assert.match(authController, /async verifyAdminResetToken\(req,\s*res,\s*next\)[\s\S]*findAdminByResetToken\(token\)/);
+    assert.match(authController, /async resetAdminPassword\(req,\s*res,\s*next\)[\s\S]*findAdminByResetToken\(token\)/);
+    assert.match(userModel, /reset_token_expires = NOW\(\) \+ \(\$2::int \* INTERVAL '1 millisecond'\)/);
+    assert.doesNotMatch(userModel, /new Date\(Date\.now\(\) \+ expiresIn\)/);
+    assert.match(emailService, /admin-reset-password\.html\?token=\$\{encodeURIComponent\(resetToken\)\}/);
+    assert.match(adminLoginHtml, /id="admin-recovery-form"/);
+    assert.match(adminLoginHtml, /fetch\('\/api\/admin\/forgot-password'/);
+    assert.match(adminResetHtml, /fetch\(`\/api\/admin\/verify-reset-token\?token=\$\{encodeURIComponent\(token\)\}`\)/);
+    assert.match(adminResetHtml, /fetch\('\/api\/admin\/reset-password'/);
+});
+
 test('frontend esta salvo em UTF-8 sem textos quebrados', () => {
     const decoder = new TextDecoder('utf-8', { fatal: true });
     const files = listWorkspaceFiles('frontend', ['.html', '.js', '.css']);
     const suspiciousMojibake = /Ã¡|Ã©|Ã­|Ã³|Ãº|Ã£|Ãµ|Ã§|Ãª|Ã¢|Ã´|Ã‡|Ã‰|Ãš|Ã“|â€”|â€“|â€|â„¢|â˜|â­|â|ðŸ|�/;
     const brokenQuestionIcon = /\?\s+(Link|Voc(?:ê|&ecirc;)|Na|Sem|Acompanhado|Editar|Pagamento|Pedido|Frete|PIX|Como|Finalizar|Enviar|Escaneie|Copiar|Copiado|Dados|Cupom|Senha|Aguardando|Processando|<strong>)/;
     const brokenQuestionPlaceholder = /class="(?:blog-card-image|card-icon|favorite-modal-icon)">\?{1,2}<\/div>|close(?:Address|Order)Modal\(\)[^>]*>\?<\/button>|(?:erro|sucesso):\s*'\?'|textContent\s*=\s*'\?[^']*'|FRETE GRÁTIS\s*\?\?/;
+    const brokenQuestionInText = /[A-Za-zÀ-ÖØ-öø-ÿ]\?[A-Za-zÀ-ÖØ-öø-ÿ]|\?s\b|\?CONES|Ol\?!/;
 
     for (const file of files) {
         const bytes = fs.readFileSync(file);
@@ -854,6 +1484,17 @@ test('frontend esta salvo em UTF-8 sem textos quebrados', () => {
         assert.doesNotMatch(source, suspiciousMojibake, `Texto com mojibake em ${file}`);
         assert.doesNotMatch(source, brokenQuestionIcon, `Icone quebrado com '?' em ${file}`);
         assert.doesNotMatch(source, brokenQuestionPlaceholder, `Placeholder quebrado com '?' em ${file}`);
+        source.split(/\r?\n/).forEach((line, index) => {
+            const isCodeOrUrl =
+                /https?:\/\//.test(line) ||
+                /\?[A-Za-z0-9_-]+=/.test(line) ||
+                /[.?]\?\.|[?\w]\?\?/.test(line) ||
+                /\?\s*:/.test(line) ||
+                /\?\s*(await|new|JSON|document|window|Number|String|Array|Date|false|true|null|undefined|[A-Za-z_$][\w$]*\.)/.test(line);
+            if (!isCodeOrUrl) {
+                assert.doesNotMatch(line, brokenQuestionInText, `Texto com '?' quebrado em ${file}:${index + 1}`);
+            }
+        });
     }
 });
 
@@ -864,26 +1505,59 @@ test('checkout aponta termos e condicoes para a pagina correta', () => {
     assert.doesNotMatch(checkout, /href="#"[^>]*>termos e condições<\/a>/);
 });
 
-test('admin estoque baixo tem severidade visual e ordenacao por menor estoque', () => {
+test('admin estoque lista todos os produtos com severidade ordenacao e paginacao', () => {
     const adminReportController = readBackendFile('src/controllers/adminReportController.js');
+    const productController = readBackendFile('src/controllers/productController.js');
+    const productSizeModel = readBackendFile('src/models/productSizeModel.js');
     const adminJs = readWorkspaceFile('frontend/js/admin.js');
     const adminHtml = readWorkspaceFile('frontend/adm.html');
     const adminCss = readWorkspaceFile('frontend/css/admin-panel.css');
 
     assert.match(adminReportController, /criticalThreshold/);
+    assert.match(adminReportController, /includeAll/);
+    assert.match(adminReportController, /json_agg/);
+    assert.match(adminReportController, /stock_by_size/);
+    assert.match(adminReportController, /p\.sizes/);
     assert.match(adminReportController, /CASE\s+WHEN stock <= \$2 THEN 'critical'/);
-    assert.match(adminReportController, /ORDER BY stock ASC,\s*name ASC/);
+    assert.match(adminReportController, /severity:\s*'severity_rank ASC, stock ASC, name ASC'/);
+    assert.match(adminReportController, /LIMIT \$3 OFFSET \$4/);
+    assert.match(adminReportController, /pagination:\s*\{/);
     assert.match(adminReportController, /severity:\s*\{/);
+    assert.match(productSizeModel, /async removeSizesNotIn/);
+    assert.match(productSizeModel, /DELETE FROM product_sizes/);
+    assert.match(productController, /ProductSizeModel\.removeSizesNotIn\(id,\s*stocks\.map\(item => item\.size\)\)/);
+    assert.match(productController, /clearProductFacetsCache\(\);/);
     assert.match(adminHtml, /id="stock-critical-count"/);
     assert.match(adminHtml, /id="stock-attention-count"/);
     assert.match(adminHtml, /id="stock-ok-count"/);
     assert.match(adminHtml, /id="admin-stock-sort"/);
+    assert.match(adminHtml, /id="estoque-pagination"/);
+    assert.match(adminHtml, /Por tamanho/);
     assert.match(adminHtml, /value="stock_asc">Menor estoque primeiro/);
+    assert.match(adminJs, /let _adminStockPage = 1/);
+    assert.match(adminJs, /const ADMIN_STOCK_PER_PAGE = 10/);
     assert.match(adminJs, /function getStockSeverityMeta/);
     assert.match(adminJs, /function renderEstoqueTable/);
+    assert.match(adminJs, /function renderStockBySize/);
+    assert.match(adminJs, /function hydrateStockItemsWithSizes/);
+    assert.match(adminJs, /function parseAdminJsonArray/);
+    assert.match(adminJs, /\/api\/products\/\$\{product\.id\}\/size-stock/);
+    assert.match(adminJs, /stock_by_size/);
+    assert.match(adminJs, /stock-size-pill/);
+    assert.match(adminJs, /Sem tamanhos cadastrados/);
+    assert.match(adminJs, /Estoque n\u00e3o separado por tamanho/);
+    assert.doesNotMatch(adminJs, /Sem grade/);
     assert.match(adminJs, /function updateStockSummary/);
+    assert.match(adminJs, /all:\s*'1'/);
+    assert.match(adminJs, /sortBy,/);
+    assert.match(adminJs, /renderAdminPagination\('estoque-pagination'/);
     assert.match(adminJs, /stock-severity-badge/);
     assert.match(adminCss, /\.admin-stock-toolbar/);
+    assert.match(adminCss, /\.stock-size-list/);
+    assert.match(adminCss, /\.stock-size-pill/);
+    assert.match(adminCss, /\.stock-size-note/);
+    assert.match(adminCss, /\.stock-size-pill\.is-untracked/);
+    assert.match(adminCss, /#estoque-report-table \.stock-row\.is-ok/);
     assert.match(adminCss, /\.stock-severity-badge\.is-critical/);
     assert.match(adminCss, /\.stock-severity-badge\.is-attention/);
     assert.match(adminCss, /\.stock-severity-badge\.is-ok/);
@@ -907,12 +1581,32 @@ test('performance publica usa imagens lazy, facets cacheadas e wishlist em lote'
     assert.match(productController, /PRODUCT_FACETS_CACHE_MS/);
     assert.match(productController, /ProductModel\.getMenuFacets/);
     assert.match(productController, /Cache-Control/);
+    assert.match(productController, /function splitProductSizes/);
+    assert.match(productController, /function sortSizes/);
+    assert.match(productController, /sizes:\s*availableSizes/);
     assert.match(productModel, /async getMenuFacets/);
-    assert.match(apiJs, /getProductFacets:\s*\(\) => API\.request\('\/products\/facets'\)/);
+    assert.match(productModel, /json_agg\(ps\.size ORDER BY/);
+    assert.match(productModel, /REPLACE\(ps\.size, ',', '\.'\)::numeric/);
+    assert.match(productModel, /ps\.stock > 0/);
+    assert.match(productModel, /EXISTS \(\s*SELECT 1\s*FROM product_sizes ps/s);
+    assert.match(productModel, /ps\.size = \$\$\{i\}/);
+    assert.match(productModel, /NOT EXISTS \(\s*SELECT 1\s*FROM product_sizes ps_any/s);
+    assert.match(apiJs, /getProductFacets:\s*\(\) => API\.request\(`\/products\/facets\?refresh=1&ts=\$\{Date\.now\(\)\}`\)/);
     assert.match(commonJs, /MEGA_MENU_FACETS_CACHE_KEY/);
-    assert.match(commonJs, /sessionStorage\.setItem\(MEGA_MENU_FACETS_CACHE_KEY/);
+    assert.match(commonJs, /primeSneaker:megaMenuFacets:v4/);
+    assert.match(commonJs, /MEGA_MENU_FACETS_CACHE_MS = 0/);
     assert.match(commonJs, /await API\.getProductFacets\(\)/);
     assert.doesNotMatch(commonJs, /fetch\('\/api\/products'\)/);
+    assert.match(commonJs, /id="mega-size-grid"/);
+    assert.match(commonJs, /function normalizeMenuSizes/);
+    assert.match(commonJs, /function renderMegaSizeLinks/);
+    assert.match(commonJs, /const sizes = Array\.isArray\(facets\.sizes\) \? facets\.sizes : \[\]/);
+    assert.match(commonJs, /renderMegaSizeLinks\(sizes\)/);
+    assert.doesNotMatch(commonJs, /\['34','35','36','37','38','39','40','41','42','43','44','45'\]/);
+    assert.match(commonJs, /function startPagesAtTop/);
+    assert.match(commonJs, /scrollRestoration = 'manual'/);
+    assert.match(commonJs, /window\.location\.hash/);
+    assert.match(commonJs, /window\.scrollTo\(0,\s*0\)/);
 
     assert.match(wishlistRoutes, /router\.get\('\/check',\s*verifyToken,\s*WishlistController\.checkManyFavorites\)/);
     assert.match(wishlistController, /async checkManyFavorites/);

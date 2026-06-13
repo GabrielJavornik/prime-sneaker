@@ -1,19 +1,33 @@
 const QRCode = require('qrcode');
 
-const PIX_CONFIG = {
-    chave: '03828643019',
-    nome: 'GABRIEL NOVELO JAVORNIK',
-    cidade: 'Erechim',
-};
+function getRequiredPixEnv(name) {
+    const value = String(process.env[name] || '').trim();
+    if (!value) {
+        const error = new Error(`[CONFIG] ${name} precisa ser definido no .env para gerar Pix.`);
+        error.status = 500;
+        throw error;
+    }
+    return value;
+}
+
+function getPixConfig() {
+    return {
+        chave: getRequiredPixEnv('PIX_KEY'),
+        nome: String(process.env.PIX_MERCHANT_NAME || 'PRIME SNEAKER').trim(),
+        cidade: String(process.env.PIX_MERCHANT_CITY || 'ERECHIM').trim(),
+    };
+}
 
 const pixService = {
     async generateQRCode(amount, options = {}) {
         try {
             const value = this.normalizeAmount(amount);
             const txid = this.normalizeTxId(options.txid || '***');
+            const pixConfig = getPixConfig();
             const emvString = this.generateEMVString(value, {
                 txid,
                 description: options.description || '',
+                pixConfig,
             });
             const qrCodeDataUrl = await QRCode.toDataURL(emvString, {
                 errorCorrectionLevel: 'M',
@@ -25,14 +39,14 @@ const pixService = {
                 qrCode: qrCodeDataUrl,
                 emvString,
                 copiaECola: emvString,
-                chave: PIX_CONFIG.chave,
-                nome: PIX_CONFIG.nome,
+                chave: pixConfig.chave,
+                nome: pixConfig.nome,
                 valor: value.toFixed(2),
                 txid,
             };
         } catch (err) {
             console.error('Erro ao gerar QR Code PIX:', err);
-            throw new Error('Erro ao gerar QR Code PIX com valor fixo');
+            throw err.status ? err : new Error('Erro ao gerar QR Code PIX');
         }
     },
 
@@ -45,16 +59,17 @@ const pixService = {
     },
 
     generateEMVString(amount, options = {}) {
+        const pixConfig = options.pixConfig || getPixConfig();
         const fields = [
             this.encodeField('00', '01'),
             this.encodeField('01', '12'),
-            this.createMerchantAccountInformation(PIX_CONFIG.chave, options.description),
+            this.createMerchantAccountInformation(pixConfig.chave, options.description),
             this.encodeField('52', '0000'),
             this.encodeField('53', '986'),
             this.createTransactionAmount(amount),
             this.encodeField('58', 'BR'),
-            this.encodeField('59', this.normalizeText(PIX_CONFIG.nome, 25)),
-            this.encodeField('60', this.normalizeText(PIX_CONFIG.cidade, 15)),
+            this.encodeField('59', this.normalizeText(pixConfig.nome, 25)),
+            this.encodeField('60', this.normalizeText(pixConfig.cidade, 15)),
             this.createAdditionalDataField(options.txid || '***'),
         ];
 

@@ -11,7 +11,15 @@ const ProductSizeModel = {
 
     async getStocksByProduct(productId) {
         const result = await db.query(
-            'SELECT size, stock FROM product_sizes WHERE product_id = $1 ORDER BY size::numeric',
+            `SELECT size, stock
+             FROM product_sizes
+             WHERE product_id = $1
+             ORDER BY
+                CASE
+                    WHEN size ~ '^[0-9]+([,.][0-9]+)?$'
+                    THEN REPLACE(size, ',', '.')::numeric
+                END NULLS LAST,
+                size`,
             [productId]
         );
         return result.rows;
@@ -46,6 +54,21 @@ const ProductSizeModel = {
             [productId, size, quantity]
         );
         return result.rows[0];
+    },
+
+    async removeSizesNotIn(productId, sizes) {
+        const normalizedSizes = [...new Set((sizes || []).map(size => String(size).trim()).filter(Boolean))];
+        if (!normalizedSizes.length) {
+            await db.query('DELETE FROM product_sizes WHERE product_id = $1', [productId]);
+            return;
+        }
+
+        await db.query(
+            `DELETE FROM product_sizes
+             WHERE product_id = $1
+               AND NOT (size = ANY($2::text[]))`,
+            [productId, normalizedSizes]
+        );
     },
 };
 

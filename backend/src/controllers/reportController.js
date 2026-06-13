@@ -1,6 +1,23 @@
 const OrderModel = require('../models/orderModel');
 const { getDateRangeFromQuery } = require('../utils/dateRange');
 
+function formatMonthValue(value) {
+    if (!value) return null;
+
+    if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value.toISOString().split('T')[0];
+    }
+
+    const text = String(value).trim();
+    const match = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+        return `${match[1]}-${match[2]}-${match[3]}`;
+    }
+
+    const date = new Date(text);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString().split('T')[0];
+}
+
 const ReportController = {
     async getSalesSummary(req, res, next) {
         try {
@@ -61,7 +78,7 @@ const ReportController = {
 
             res.status(200).json({
                 monthlySales: monthlySales.map(m => ({
-                    month: m.month ? m.month.toISOString().split('T')[0] : null,
+                    month: formatMonthValue(m.month),
                     totalSales: parseFloat(m.total_sales || 0),
                     totalOrders: parseInt(m.total_orders || 0),
                 })),
@@ -101,7 +118,7 @@ const ReportController = {
                     totalRevenue: parseFloat(p.total_revenue),
                 })),
                 monthlySales: monthlySales.map(m => ({
-                    month: m.month ? m.month.toISOString().split('T')[0] : null,
+                    month: formatMonthValue(m.month),
                     totalSales: parseFloat(m.total_sales || 0),
                     totalOrders: parseInt(m.total_orders || 0),
                 })),
