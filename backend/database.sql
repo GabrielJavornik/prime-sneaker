@@ -190,7 +190,8 @@ INSERT INTO products (name, description, price, image_url, sizes, color, categor
 ('Puma RS-X', 'Design retro dos anos 80 reinventado com cores vibrantes.', 499.90, 'https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=600', '37,38,39,40,41,42', 'Branco', 'casual', 'Puma', 'feminino', FALSE, TRUE, 20, 25),
 ('Nike Jordan 1 Mid', 'Icone do basquete e da cultura streetwear com visual classico.', 1099.00, 'https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?w=600', '39,40,41,42,43,44', 'Vermelho/Preto', 'esportivo', 'Jordan', 'masculino', TRUE, FALSE, 0, 10),
 ('Mizuno Wave Prophecy', 'Tenis premium para corrida com tecnologia Infinity Wave.', 1499.00, 'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=600', '39,40,41,42,43', 'Azul', 'esportivo', 'Mizuno', 'masculino', FALSE, FALSE, 0, 8),
-('Vans Old Skool', 'Modelo classico e atemporal, perfeito para o skate e o dia a dia.', 349.90, 'https://images.unsplash.com/photo-1525966222134-fcfa99b8ae77?w=600', '36,37,38,39,40,41,42', 'Preto/Branco', 'casual', 'Vans', 'infantil', FALSE, TRUE, 15, 30);
+('Tenis Nike Run Swift 3', 'Sinta o melhor da Nike em todos os detalhes do Run Swift 3, com suporte leve e conforto para a rotina.', 599.99, 'https://imgcentauro-a.akamaihd.net/1024x1024/9850370CA2.jpg', '39,40,41,42', 'Branco/Laranja', 'esportivo', 'Nike', 'infantil', TRUE, FALSE, 0, 34),
+('Tenis Nike Run Swift 3', 'Sinta o melhor da Nike em todos os detalhes do Run Swift 3, com suporte leve e conforto para a rotina.', 559.99, 'https://imgcentauro-a.akamaihd.net/1024x1024/M0XAPW31A2.jpg', '39,40,41', 'Preto/Branco', 'esportivo', 'Nike', 'infantil', FALSE, FALSE, 0, 60);
 
 -- Cupom de exemplo
 INSERT INTO coupons (code, discount_percent, active, expires_at, max_uses) VALUES

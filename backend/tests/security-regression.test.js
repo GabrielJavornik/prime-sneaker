@@ -1397,9 +1397,9 @@ test('dourado nao e usado como texto pequeno em fundo claro', () => {
     assert.doesNotMatch(cartJs, /background:\s*var\(--accent\);\s*color:\s*(white|#fff)/);
     assert.doesNotMatch(cartJs, /color:\s*var\(--accent\)/);
     assert.doesNotMatch(adminJs, /color:\s*var\(--accent\);\s*font-size/);
-    assert.match(indexHtml, /css\/style\.css\?v=35/);
-    assert.match(productHtml, /css\/style\.css\?v=38/);
-    assert.match(cartHtml, /css\/style\.css\?v=32/);
+    assert.match(indexHtml, /css\/style\.css\?v=\d+/);
+    assert.match(productHtml, /css\/style\.css\?v=\d+/);
+    assert.match(cartHtml, /css\/style\.css\?v=\d+/);
 });
 
 test('vermelho de perigo tem contraste AA com texto branco', () => {

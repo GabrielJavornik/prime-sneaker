@@ -95,11 +95,11 @@ async function loadResults() {
 
         if (!items.length) {
             container.innerHTML = '<p class="no-results">Nenhum produto encontrado com esses filtros.</p>';
-            meta.textContent = '0 produtos';
+            meta.textContent = '';
             return;
         }
 
-        meta.textContent = `${pagination.total} produto(s) encontrado(s)`;
+        meta.textContent = '';
         container.innerHTML = items.map(p => renderCard(p)).join('');
         renderPagination(pagination);
         await updateFavoriteButtons(items);

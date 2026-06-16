@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Prime Sneaker - Os melhores t&ecirc;nis do mercado</title>
-    <link rel="stylesheet" href="css/style.css?v=35" />
+    <link rel="stylesheet" href="css/style.css?v=38" />
     <script>
         if ('scrollRestoration' in history) {
             history.scrollRestoration = 'manual';
@@ -20,39 +20,21 @@
 
     <main>
         <!-- Banner principal -->
-        <section class="banner">
-            <div class="banner-copy">
-                <span class="banner-kicker">Sneakers selecionados</span>
-                <h1>Prime Sneaker - Sua Jornada Come&ccedil;a pelos P&eacute;s</h1>
-                <p>Curadoria premium, lan&ccedil;amentos e ofertas em um cat&aacute;logo feito para comprar sem enrola&ccedil;&atilde;o.</p>
-                <div class="banner-actions">
-                    <a href="/busca?launch=1" class="btn-cta">Ver Lan&ccedil;amentos</a>
-                    <a href="/busca?outlet=1" class="btn-cta btn-cta-outline">Ver Outlet</a>
-                </div>
+        <section class="banner product-hero-banner" aria-label="Destaques Prime Sneaker">
+            <button class="hero-banner-arrow hero-banner-arrow-prev" type="button" id="hero-banner-prev" aria-label="Produto anterior">&lsaquo;</button>
+            <div class="hero-banner-track" id="hero-banner-track">
+                <article class="hero-banner-slide is-active">
+                    <div class="hero-banner-copy">
+                        <h1>T&ecirc;nis em destaque da loja</h1>
+                        <p>Carregando modelos reais do cat&aacute;logo Prime Sneaker...</p>
+                    </div>
+                    <div class="hero-banner-visual" aria-hidden="true">
+                        <div class="hero-banner-skeleton"></div>
+                    </div>
+                </article>
             </div>
-            <div class="banner-proof" aria-label="Diferenciais da Prime Sneaker">
-                <div class="banner-proof-card">
-                    <span>01</span>
-                    <div>
-                        <strong>Drops e Lan&ccedil;amentos</strong>
-                        <small>Os modelos mais quentes e cobi&ccedil;ados do momento, separados para voc&ecirc;.</small>
-                    </div>
-                </div>
-                <div class="banner-proof-card">
-                    <span>02</span>
-                    <div>
-                        <strong>Outlet</strong>
-                        <small>Garantimos o melhor pre&ccedil;o.</small>
-                    </div>
-                </div>
-                <div class="banner-proof-card">
-                    <span>03</span>
-                    <div>
-                        <strong>Compra Direta e segura</strong>
-                        <small>Pagamento via Pix com aprova&ccedil;&atilde;o imediata e segura.</small>
-                    </div>
-                </div>
-            </div>
+            <button class="hero-banner-arrow hero-banner-arrow-next" type="button" id="hero-banner-next" aria-label="Pr&oacute;ximo produto">&rsaquo;</button>
+            <div class="hero-banner-dots" id="hero-banner-dots" aria-label="Controle do banner"></div>
         </section>
 
         <!-- Destaques (4 produtos) -->
@@ -114,7 +96,7 @@
     <script src="js/wishlist.js?v=2"></script>
     <script src="js/api.js?v=7"></script>
     <script src="js/common.js?v=24"></script>
-    <script src="js/home.js?v=11"></script>
+    <script src="js/home.js?v=14"></script>
     <script>
         async function inscreverNewsletter(e) {
             e.preventDefault();

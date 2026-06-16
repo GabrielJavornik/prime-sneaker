@@ -1,3 +1,165 @@
+const HERO_BANNER_LIMIT = 6;
+const HERO_BANNER_INTERVAL_MS = 6500;
+let heroBannerProducts = [];
+let heroBannerIndex = 0;
+let heroBannerTimer = null;
+
+/**
+ * Home - carrega o banner principal com produtos reais.
+ */
+(async function loadHeroBanner() {
+    const track = document.getElementById('hero-banner-track');
+    if (!track) return;
+
+    try {
+        const searchResult = await API.search({ limit: HERO_BANNER_LIMIT, sortBy: 'recent' });
+        let products = normalizeHeroProducts(searchResult);
+
+        if (!products.length) {
+            products = normalizeHeroProducts(await API.getTopProducts(HERO_BANNER_LIMIT));
+        }
+
+        if (!products.length) {
+            renderHeroBannerEmpty();
+            return;
+        }
+
+        renderHeroBanner(products);
+    } catch (err) {
+        console.warn('Nao foi possivel carregar o banner da home:', err.message);
+        renderHeroBannerEmpty();
+    }
+})();
+
+function normalizeHeroProducts(response) {
+    const list = Array.isArray(response) ? response : (Array.isArray(response?.items) ? response.items : []);
+    return list
+        .filter(product => product && product.id)
+        .filter(product => safeImageSrc(product.image_url, ''))
+        .slice(0, HERO_BANNER_LIMIT);
+}
+
+function renderHeroBanner(products) {
+    const track = document.getElementById('hero-banner-track');
+    const dots = document.getElementById('hero-banner-dots');
+    const prev = document.getElementById('hero-banner-prev');
+    const next = document.getElementById('hero-banner-next');
+
+    heroBannerProducts = products;
+    heroBannerIndex = 0;
+
+    track.innerHTML = products.map((product, index) => renderHeroBannerSlide(product, index)).join('');
+    dots.innerHTML = products.map((_, index) => `
+        <button type="button" class="hero-banner-dot" data-hero-dot="${index}" aria-label="Ver destaque ${index + 1}"></button>
+    `).join('');
+
+    dots.querySelectorAll('[data-hero-dot]').forEach(button => {
+        button.addEventListener('click', () => {
+            setHeroBannerSlide(Number(button.dataset.heroDot));
+            restartHeroBannerTimer();
+        });
+    });
+
+    if (prev) {
+        prev.disabled = products.length <= 1;
+        prev.addEventListener('click', () => {
+            moveHeroBannerSlide(-1);
+            restartHeroBannerTimer();
+        });
+    }
+
+    if (next) {
+        next.disabled = products.length <= 1;
+        next.addEventListener('click', () => {
+            moveHeroBannerSlide(1);
+            restartHeroBannerTimer();
+        });
+    }
+
+    setHeroBannerSlide(0);
+    restartHeroBannerTimer();
+}
+
+function renderHeroBannerSlide(product, index) {
+    const img = safeImageSrc(product.image_url, 'https://via.placeholder.com/780x430?text=Prime+Sneaker');
+    const name = escapeHTML(product.name || 'T\u00eanis Prime Sneaker');
+    const nameAttr = escapeAttribute(product.name || 'Produto Prime Sneaker');
+    const description = escapeHTML(getHeroBannerDescription(product));
+    const productUrl = escapeAttribute(buildProductUrl(product));
+    const theme = index % 4;
+
+    return `
+        <article class="hero-banner-slide hero-banner-theme-${theme}" data-hero-slide="${index}" aria-hidden="${index === 0 ? 'false' : 'true'}">
+            <div class="hero-banner-copy">
+                <h1>${name}</h1>
+                <p>${description}</p>
+            </div>
+            <a href="${productUrl}" class="hero-banner-visual" aria-label="Ver ${nameAttr}">
+                <span class="hero-banner-backdrop" aria-hidden="true"></span>
+                <img src="${escapeAttribute(img)}" alt="${nameAttr}" loading="${index === 0 ? 'eager' : 'lazy'}" decoding="async" onerror="this.src='https://via.placeholder.com/780x430?text=Sem+Imagem'">
+            </a>
+        </article>
+    `;
+}
+
+function getHeroBannerDescription(product) {
+    const description = String(product?.description || '').replace(/\s+/g, ' ').trim();
+    if (!description) {
+        return 'Conhe\u00e7a este modelo dispon\u00edvel no cat\u00e1logo Prime Sneaker.';
+    }
+    return description.length > 190 ? `${description.slice(0, 187).trim()}...` : description;
+}
+
+function renderHeroBannerEmpty() {
+    const track = document.getElementById('hero-banner-track');
+    const dots = document.getElementById('hero-banner-dots');
+    const prev = document.getElementById('hero-banner-prev');
+    const next = document.getElementById('hero-banner-next');
+
+    if (prev) prev.disabled = true;
+    if (next) next.disabled = true;
+    if (dots) dots.innerHTML = '';
+    if (!track) return;
+
+    track.innerHTML = `
+        <article class="hero-banner-slide is-active">
+            <div class="hero-banner-copy">
+                <h1>Cadastre produtos para montar o banner</h1>
+                <p>Assim que houver t\u00eanis com imagem no cat\u00e1logo, eles aparecem automaticamente aqui.</p>
+            </div>
+            <div class="hero-banner-visual" aria-hidden="true">
+                <div class="hero-banner-skeleton"></div>
+            </div>
+        </article>
+    `;
+}
+
+function setHeroBannerSlide(index) {
+    if (!heroBannerProducts.length) return;
+    const total = heroBannerProducts.length;
+    heroBannerIndex = ((index % total) + total) % total;
+
+    document.querySelectorAll('[data-hero-slide]').forEach(slide => {
+        const isActive = Number(slide.dataset.heroSlide) === heroBannerIndex;
+        slide.classList.toggle('is-active', isActive);
+        slide.setAttribute('aria-hidden', String(!isActive));
+    });
+
+    document.querySelectorAll('[data-hero-dot]').forEach(dot => {
+        dot.classList.toggle('is-active', Number(dot.dataset.heroDot) === heroBannerIndex);
+    });
+}
+
+function moveHeroBannerSlide(direction) {
+    setHeroBannerSlide(heroBannerIndex + direction);
+}
+
+function restartHeroBannerTimer() {
+    if (heroBannerTimer) clearInterval(heroBannerTimer);
+    if (heroBannerProducts.length <= 1) return;
+    heroBannerTimer = setInterval(() => moveHeroBannerSlide(1), HERO_BANNER_INTERVAL_MS);
+}
+
 /**
  * Home - carrega 4 produtos em destaque.
  */
