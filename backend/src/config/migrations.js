@@ -61,7 +61,13 @@ const migrations = [
                     WHERE status = 'pendente';
                     CREATE INDEX IF NOT EXISTS idx_orders_status ON orders (status);
                 END IF;
-             END $$`,
+            END $$`,
+        ],
+    },
+    {
+        name: 'orders_shipping_address',
+        statements: [
+            `ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_address JSONB DEFAULT '{}'::jsonb`,
         ],
     },
     {
@@ -148,6 +154,24 @@ const migrations = [
                 UNIQUE(user_id, product_id, size)
             )`,
             `CREATE INDEX IF NOT EXISTS idx_cart_items_user_id ON cart_items(user_id)`,
+        ],
+    },
+    {
+        name: 'addresses_checkout_fields',
+        statements: [
+            `DO $$
+             BEGIN
+                IF EXISTS (
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                      AND table_name = 'addresses'
+                ) THEN
+                    ALTER TABLE addresses ADD COLUMN IF NOT EXISTS neighborhood VARCHAR(120);
+                    ALTER TABLE addresses ADD COLUMN IF NOT EXISTS country VARCHAR(80);
+                    ALTER TABLE addresses ADD COLUMN IF NOT EXISTS type VARCHAR(30);
+                END IF;
+             END $$`,
         ],
     },
     {

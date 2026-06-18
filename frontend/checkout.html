@@ -216,11 +216,11 @@
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
                             <div>
                                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Nome <span style="color: var(--danger);">*</span></label>
-                                <input type="text" id="checkout-nome" placeholder="Nome" style="width: 100%; padding: 0.7rem; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem;">
+                                <input type="text" id="checkout-nome" placeholder="Nome" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem;">
                             </div>
                             <div>
                                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Sobrenome <span style="color: var(--danger);">*</span></label>
-                                <input type="text" id="checkout-sobrenome" placeholder="Sobrenome" style="width: 100%; padding: 0.7rem; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem;">
+                                <input type="text" id="checkout-sobrenome" placeholder="Sobrenome" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem;">
                             </div>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
@@ -230,7 +230,7 @@
                             </div>
                             <div>
                                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Telefone <span style="color: var(--danger);">*</span></label>
-                                <input type="text" id="checkout-telefone" placeholder="(00) 00000-0000" style="width: 100%; padding: 0.7rem; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem;">
+                                <input type="text" id="checkout-telefone" placeholder="(00) 00000-0000" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem;">
                             </div>
                         </div>
                         <div style="margin-bottom: 1rem;">
@@ -335,6 +335,11 @@
                     <div style="margin-bottom: 0.75rem; display: flex; justify-content: space-between; font-size: 0.95rem;">
                         <span>Subtotal</span>
                         <span id="summary-subtotal">R$ 0,00</span>
+                    </div>
+
+                    <div style="margin-bottom: 0.75rem; display: flex; justify-content: space-between; font-size: 0.95rem;">
+                        <span>Frete</span>
+                        <span id="summary-shipping">Informe o CEP</span>
                     </div>
 
                     <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; font-size: 0.95rem;">
@@ -686,14 +691,30 @@
             copyTextWithFeedback(key, 'Chave PIX copiada!');
         }
 
-        function carregarDadosUsuario() {
-            const user = getLoggedUser();
+        function syncSessionUserProfile(profile) {
+            if (!profile) return;
+            try {
+                const current = getLoggedUser() || {};
+                sessionStorage.setItem('user', JSON.stringify({ ...current, ...profile }));
+                localStorage.removeItem('user');
+            } catch (_) {}
+        }
+
+        function preencherDadosUsuarioCheckout(userData, overwrite = false) {
+            if (!userData) return;
+            const nome = splitNameForCheckout(userData.name || '');
+            setCheckoutValue('checkout-nome', nome.firstName, overwrite);
+            setCheckoutValue('checkout-sobrenome', nome.lastName, overwrite);
+            setCheckoutValue('checkout-cpf', userData.cpf || '', overwrite);
+            setCheckoutValue('checkout-telefone', userData.phone || '', overwrite);
+        }
+
+        function carregarDadosUsuario(profile = null) {
+            const user = profile || getLoggedUser();
             if (user) {
                 const emailDiv = document.getElementById('user-email');
                 emailDiv.textContent = user.email || '';
-                document.getElementById('checkout-nome').value = (user.name || '').split(' ')[0] || '';
-                if (user.cpf) document.getElementById('checkout-cpf').value = user.cpf;
-                if (user.phone) document.getElementById('checkout-telefone').value = user.phone;
+                preencherDadosUsuarioCheckout(user, false);
             }
         }
 
@@ -703,6 +724,13 @@
 
             if (cep.length !== 8) {
                 Notifications.error('CEP deve ter 8 dígitos');
+                return;
+            }
+
+            const regiao = getRegiaoPorCep(cep);
+            if (!regiao) {
+                Notifications.error('CEP inválido');
+                atualizarInfoEnvio();
                 return;
             }
 
@@ -721,8 +749,11 @@
                 const data = await res.json();
 
                 if (data.erro) {
-                    Notifications.error('CEP não encontrado');
                     atualizarInfoEnvio();
+                    if (typeof loadCheckout === 'function') {
+                        await loadCheckout();
+                    }
+                    Notifications.info('CEP validado por região. Complete o endereço manualmente.');
                     return;
                 }
 
@@ -731,6 +762,10 @@
                 if (cidadeEl) cidadeEl.value = data.localidade ? `${data.localidade} - ${data.uf || ''}`.trim() : '';
 
                 atualizarInfoEnvio(); // recalcula prazo conforme regiao do CEP
+
+                if (typeof loadCheckout === 'function') {
+                    await loadCheckout();
+                }
 
                 // Se a ViaCEP nao retornou logradouro (comum em CEPs de centro),
                 // avisa o usuario para completar manualmente
@@ -742,7 +777,11 @@
                 }
             } catch (err) {
                 console.error('Erro ao buscar CEP:', err);
-                Notifications.error('Erro ao buscar CEP');
+                atualizarInfoEnvio();
+                if (typeof loadCheckout === 'function') {
+                    await loadCheckout();
+                }
+                Notifications.info('CEP validado por região. Complete o endereço manualmente.');
             }
         }
 
@@ -797,12 +836,36 @@
             if (!regiao) {
                 main.innerHTML = 'Informe o CEP para calcular o prazo de entrega';
                 summary.innerHTML = 'Informe o CEP';
+                const shippingValue = document.getElementById('summary-shipping');
+                if (shippingValue) shippingValue.textContent = 'Informe o CEP';
                 return;
             }
 
             const r = PRAZOS_REGIAO[regiao];
-            main.innerHTML = `<strong>FRETE GRÁTIS</strong> | Região: ${r.label} | Separação: ${r.sep} dias úteis | Entrega: ${r.entrega} dias úteis`;
-            summary.innerHTML = `<strong>FRETE GRÁTIS</strong><br>Região: ${r.label}<br>Separação: ${r.sep} dias úteis<br>Entrega: ${r.entrega} dias úteis`;
+            main.innerHTML = `<strong>Calculando frete...</strong> | Região: ${r.label} | Separação: ${r.sep} dias úteis | Entrega: ${r.entrega} dias úteis`;
+            summary.innerHTML = `<strong>Calculando frete...</strong><br>Região: ${r.label}<br>Separação: ${r.sep} dias úteis<br>Entrega: ${r.entrega} dias úteis`;
+        }
+
+        function renderShippingInfoWithPrice(shipping, shippingRegion) {
+            const amount = formatBRL(Number(shipping) || 0);
+            const cep = typeof getCheckoutCepForPricing === 'function'
+                ? getCheckoutCepForPricing()
+                : (document.getElementById('checkout-cep')?.value || '');
+            const regiao = getRegiaoPorCep(cep);
+            const prazo = regiao ? PRAZOS_REGIAO[regiao] : null;
+            const regionLabel = shippingRegion || prazo?.label || 'Região calculada';
+
+            const main = document.getElementById('shipping-info-main');
+            if (main) {
+                const prazoText = prazo ? ` | Separação: ${prazo.sep} dias úteis | Entrega: ${prazo.entrega} dias úteis` : '';
+                main.innerHTML = `<strong>${escapeHTML(regionLabel)}: ${amount}</strong>${prazoText}`;
+            }
+
+            const summary = document.getElementById('shipping-info-summary');
+            if (summary) {
+                const prazoText = prazo ? `<br>Separação: ${prazo.sep} dias úteis<br>Entrega: ${prazo.entrega} dias úteis` : '';
+                summary.innerHTML = `<strong>${escapeHTML(regionLabel)}: ${amount}</strong>${prazoText}`;
+            }
         }
 
         function copyPixKey() {
@@ -880,14 +943,22 @@
                 }
 
                 const nome = document.getElementById('checkout-nome').value.trim();
+                const sobrenome = document.getElementById('checkout-sobrenome').value.trim();
                 const cpfInput = document.getElementById('checkout-cpf').value;
+                const telefoneInput = document.getElementById('checkout-telefone').value;
                 const numero = document.getElementById('checkout-numero').value.trim();
                 const rua = document.getElementById('checkout-rua').value.trim();
                 const bairro = document.getElementById('checkout-bairro').value.trim();
                 const cidade = document.getElementById('checkout-cidade').value.trim();
                 const cep = document.getElementById('checkout-cep').value.replace(/\D/g, '');
+                const telefoneDigits = telefoneInput.replace(/\D/g, '');
                 if (!nome) {
                     mostrarAlertaCustomizado('Preencha o campo Nome', 'erro');
+                    return;
+                }
+
+                if (!sobrenome) {
+                    mostrarAlertaCustomizado('Preencha o campo Sobrenome', 'erro');
                     return;
                 }
 
@@ -898,6 +969,11 @@
 
                 if (!validarCPF(cpfInput)) {
                     mostrarAlertaCustomizado('CPF inválido - Verifique os dígitos e tente novamente', 'erro');
+                    return;
+                }
+
+                if (telefoneDigits.length < 10 || telefoneDigits.length > 11) {
+                    mostrarAlertaCustomizado('Telefone inválido - informe DDD e número', 'erro');
                     return;
                 }
 
@@ -998,6 +1074,7 @@
             }
 
             try {
+                await salvarDadosCompraNoPerfil();
                 const orderId = await createOrder(data.cart, data.subtotal, data.shipping, data.discount, data.total, data.couponCode);
                 return !!orderId;
             } catch (err) {
@@ -1029,6 +1106,7 @@
                 },
                 body: JSON.stringify({
                     couponCode: data.couponCode || null,
+                    cep: getCheckoutCepForPricing(),
                     items: data.cart.map(item => ({
                         productId: item.productId,
                         quantity: item.quantity,
@@ -1152,6 +1230,7 @@
             if (_confirmandoPagamentoPix) return;
             const btn = document.getElementById('pix-payment-done-btn');
             const originalText = btn ? btn.textContent : '';
+            const whatsappTab = window.open('about:blank', '_blank');
             try {
                 _confirmandoPagamentoPix = true;
                 if (btn) {
@@ -1162,7 +1241,10 @@
                 }
 
                 const okPix = await criarPedidoBackend();
-                if (!okPix) return;
+                if (!okPix) {
+                    if (whatsappTab && !whatsappTab.closed) whatsappTab.close();
+                    return;
+                }
 
                 // Limpar carrinho pois agora o cliente confirmou que realizou o PIX
                 await Cart.clear();
@@ -1174,24 +1256,27 @@
                 const message = `Olá! Realizei o pagamento PIX do pedido #${currentOrderId} e gostaria de enviar o comprovante para validação.`;
                 const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
 
-                // Mostrar página de sucesso antes de abrir WhatsApp
+                if (whatsappTab && !whatsappTab.closed) {
+                    whatsappTab.location.href = whatsappUrl;
+                }
+
                 const main = document.querySelector('main');
                 main.innerHTML = `
                     <div style="text-align: center; padding: 3rem; max-width: 600px; margin: 0 auto;">
                         <h2 style="color: var(--success); margin-bottom: 1rem; font-size: 1.8rem;">Pedido Realizado!</h2>
                         <p style="color: var(--muted); margin-bottom: 2rem; font-size: 1rem;">Seu pedido foi criado com sucesso. Agora envie o comprovante do PIX via WhatsApp.</p>
-                        <p style="color: var(--primary); margin-bottom: 2rem; font-weight: 600;">Aguarde o redirecionamento...</p>
+                        <a href="${escapeAttribute(whatsappUrl)}" target="_blank" rel="noopener" style="display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 1.5rem; background: #25D366; color: #fff; border-radius: 999px; font-weight: 900; text-decoration: none; margin-bottom: 1rem;">
+                            Abrir WhatsApp
+                        </a>
+                        <p style="color: var(--muted); font-size: .9rem;">Se o WhatsApp não abrir automaticamente, clique no botão acima.</p>
                     </div>
                 `;
 
-                // Redirecionar para WhatsApp após 2 segundos
                 setTimeout(() => {
-                    window.open(whatsappUrl, '_blank');
-                    setTimeout(() => {
-                        window.location.href = 'index.html';
-                    }, 3000);
-                }, 2000);
+                    window.location.href = 'index.html';
+                }, 8000);
             } catch (err) {
+                if (whatsappTab && !whatsappTab.closed) whatsappTab.close();
                 console.error('Erro em irParaWhatsAppComProvante:', err);
                 mostrarAlertaCustomizado('Erro ao processar: ' + err.message, 'erro');
             } finally {
@@ -1235,6 +1320,19 @@
         function getEnderecoStorageKey() {
             const u = getLoggedUser();
             return u && u.id ? `endereco_salvo_${u.id}` : null;
+        }
+
+        const CHECKOUT_CEP_STORAGE_KEY = 'cep_entrega';
+
+        function getCheckoutCepStorageKey() {
+            const u = getLoggedUser();
+            return u && u.id ? `${CHECKOUT_CEP_STORAGE_KEY}_${u.id}` : `${CHECKOUT_CEP_STORAGE_KEY}_guest`;
+        }
+
+        function removeLegacyCheckoutCepStorage() {
+            try {
+                localStorage.removeItem(CHECKOUT_CEP_STORAGE_KEY);
+            } catch (_) {}
         }
 
         function salvarEnderecoLocalStorage() {
@@ -1285,6 +1383,10 @@
             const cepEl = document.getElementById('checkout-cep');
             if (cepEl) {
                 return {
+                    nome: document.getElementById('checkout-nome')?.value.trim() || '',
+                    sobrenome: document.getElementById('checkout-sobrenome')?.value.trim() || '',
+                    cpf: document.getElementById('checkout-cpf')?.value.trim() || '',
+                    telefone: document.getElementById('checkout-telefone')?.value.trim() || '',
                     cep: cepEl.value.trim(),
                     numero: document.getElementById('checkout-numero')?.value.trim() || '',
                     rua: document.getElementById('checkout-rua')?.value.trim() || '',
@@ -1306,40 +1408,152 @@
             }
         }
 
+        async function salvarDadosCompraNoPerfil() {
+            const token = sessionStorage.getItem('token');
+            if (!token) return;
+
+            const dados = getCheckoutAddressForOrder();
+            const cpf = String(dados.cpf || '').trim();
+            if (!cpf) return;
+
+            const payload = { cpf };
+            const nomeCompleto = [dados.nome, dados.sobrenome].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+            if (nomeCompleto.length >= 3) payload.name = nomeCompleto;
+            if (dados.telefone) payload.phone = dados.telefone;
+            if (dados.cep) payload.cep = dados.cep;
+            if (dados.rua) {
+                payload.address = [dados.rua, dados.numero, dados.bairro, dados.cidade]
+                    .filter(Boolean)
+                    .join(' - ');
+            }
+
+            const response = await fetch('/api/users/profile', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || 'Nao foi possivel salvar seus dados no perfil');
+            }
+
+            if (data.user) syncSessionUserProfile(data.user);
+        }
+
+        function formatCheckoutCep(cep) {
+            const digits = String(cep || '').replace(/\D/g, '').slice(0, 8);
+            return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
+        }
+
+        function setCheckoutValue(id, value, overwrite = true) {
+            const el = document.getElementById(id);
+            const text = String(value || '').trim();
+            if (!el || !text) return;
+            if (overwrite || !String(el.value || '').trim()) el.value = text;
+        }
+
+        function splitNameForCheckout(name) {
+            const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+            return {
+                firstName: parts[0] || '',
+                lastName: parts.slice(1).join(' '),
+            };
+        }
+
+        function applyCheckoutAddress(endereco, overwrite = true) {
+            if (!endereco || !endereco.cep) return false;
+
+            const campos = {
+                'checkout-nome': endereco.nome,
+                'checkout-sobrenome': endereco.sobrenome,
+                'checkout-cpf': endereco.cpf,
+                'checkout-telefone': endereco.telefone,
+                'checkout-cep': formatCheckoutCep(endereco.cep),
+                'checkout-numero': endereco.numero,
+                'checkout-rua': endereco.rua,
+                'checkout-bairro': endereco.bairro,
+                'checkout-cidade': endereco.cidade,
+                'checkout-complemento': endereco.complemento,
+            };
+
+            for (const [id, valor] of Object.entries(campos)) {
+                setCheckoutValue(id, valor, overwrite);
+            }
+
+            const cep = campos['checkout-cep'];
+            const addressLine = [
+                endereco.rua,
+                endereco.numero,
+                endereco.bairro,
+                endereco.cidade,
+            ].filter(Boolean).join(' - ');
+
+            const key = getEnderecoStorageKey();
+            if (key) localStorage.setItem(key, JSON.stringify({ ...endereco, cep }));
+            localStorage.setItem(getCheckoutCepStorageKey(), JSON.stringify({ cep, address: addressLine }));
+            removeLegacyCheckoutCepStorage();
+            window._checkoutAddress = { ...endereco, cep };
+            atualizarInfoEnvio();
+            return true;
+        }
+
+        function normalizeApiAddressForCheckout(addr, profile = null) {
+            const userData = profile || getLoggedUser() || {};
+            const name = splitNameForCheckout(userData.name || '');
+            return {
+                nome: name.firstName,
+                sobrenome: name.lastName,
+                cpf: userData.cpf || '',
+                telefone: userData.phone || '',
+                cep: addr.cep || '',
+                numero: addr.number || '',
+                rua: addr.street || '',
+                bairro: addr.neighborhood || addr.bairro || '',
+                cidade: [addr.city, addr.state].filter(Boolean).join(' - '),
+                complemento: addr.complement || '',
+            };
+        }
+
+        async function carregarEnderecoSalvoApi(profile = null) {
+            try {
+                const token = sessionStorage.getItem('token');
+                if (!token) return false;
+
+                const addresses = typeof API !== 'undefined' && API.getAddresses
+                    ? await API.getAddresses()
+                    : await fetch('/api/addresses', {
+                        headers: { 'Authorization': `Bearer ${token}` },
+                    }).then(r => r.ok ? r.json() : []);
+
+                if (!Array.isArray(addresses) || addresses.length === 0) return false;
+
+                const selectedAddress = addresses.find(addr => addr.is_default) || addresses[0];
+                return applyCheckoutAddress(normalizeApiAddressForCheckout(selectedAddress, profile), true);
+            } catch (err) {
+                console.warn('Não foi possível carregar endereço salvo:', err.message);
+                return false;
+            }
+        }
+
         function carregarEnderecoSalvo() {
             try {
                 const key = getEnderecoStorageKey();
                 if (!key) return;
                 // Limpa qualquer chave compartilhada legada
                 localStorage.removeItem('endereco_salvo');
+                removeLegacyCheckoutCepStorage();
                 const endereco = JSON.parse(localStorage.getItem(key) || 'null');
-                if (endereco) {
-                    const campos = {
-                        'checkout-nome': endereco.nome,
-                        'checkout-sobrenome': endereco.sobrenome,
-                        'checkout-cpf': endereco.cpf,
-                        'checkout-telefone': endereco.telefone,
-                        'checkout-cep': endereco.cep,
-                        'checkout-numero': endereco.numero,
-                        'checkout-rua': endereco.rua,
-                        'checkout-bairro': endereco.bairro,
-                        'checkout-cidade': endereco.cidade,
-                        'checkout-complemento': endereco.complemento
-                    };
-
-                    for (const [id, valor] of Object.entries(campos)) {
-                        const el = document.getElementById(id);
-                        if (el && valor) {
-                            el.value = valor;
-                        }
-                    }
-                }
+                if (endereco) applyCheckoutAddress(endereco, true);
             } catch (err) {
                 console.error('Erro ao carregar endereço:', err);
             }
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             const user = getLoggedUser();
             if (!user) {
                 window.location.href = 'login.html';
@@ -1347,7 +1561,8 @@
             }
 
             carregarDadosUsuario();
-            carregarEnderecoSalvo();
+            const loadedAddress = await carregarEnderecoSalvoApi();
+            if (!loadedAddress) carregarEnderecoSalvo();
             atualizarInfoEnvio(); // se ja temos CEP salvo, mostra prazo da regiao
 
             // Mascara CEP + atualizacao em tempo real do prazo de envio
@@ -1496,6 +1711,19 @@
 
         const PENDING_ORDER_KEY = 'pending_order';
 
+        function getCheckoutCepForPricing() {
+            const cepEl = document.getElementById('checkout-cep');
+            const typedCep = cepEl ? cepEl.value : '';
+            if (String(typedCep || '').replace(/\D/g, '').length === 8) return typedCep;
+
+            try {
+                const savedCep = JSON.parse(localStorage.getItem(getCheckoutCepStorageKey()) || 'null');
+                return savedCep?.cep || '';
+            } catch (_) {
+                return '';
+            }
+        }
+
         function cartSignature(cart) {
             return JSON.stringify(cart.map(i => ({ p: i.productId, s: i.size || null, q: i.quantity })));
         }
@@ -1508,13 +1736,19 @@
                     headers: { 'Authorization': `Bearer ${token}` },
                 });
                 const perfil = resp.ok ? await resp.json() : null;
+                if (perfil) {
+                    syncSessionUserProfile(perfil);
+                    carregarDadosUsuario(perfil);
+                }
 
                 const cpf = (perfil && perfil.cpf || '').replace(/\D/g, '');
                 const phone = (perfil && perfil.phone || '').replace(/\D/g, '');
-                const cepSalvo = JSON.parse(localStorage.getItem('cep_entrega') || 'null');
+                const loadedAddress = await carregarEnderecoSalvoApi(perfil);
+                if (!loadedAddress) carregarEnderecoSalvo();
+                const cepAtual = getCheckoutCepForPricing();
 
                 const faltando = [];
-                if (!cepSalvo || !cepSalvo.cep) faltando.push('CEP');
+                if (!cepAtual || String(cepAtual).replace(/\D/g, '').length !== 8) faltando.push('CEP');
 
                 if (faltando.length > 0) {
                     checkoutContent.style.display = 'none';
@@ -1575,11 +1809,12 @@
                     size: item.size || null,
                 }));
 
-                let subtotal, shipping, discount, total, appliedCoupon = null;
+                let subtotal, shipping, discount, total, shippingRegion = null, appliedCoupon = null;
                 try {
-                    const resp = await API.checkout(payloadItems, couponCode || undefined);
+                    const resp = await API.checkout(payloadItems, couponCode || undefined, getCheckoutCepForPricing());
                     subtotal = Number(resp.subtotal) || 0;
                     shipping = Number(resp.shipping) || 0;
+                    shippingRegion = resp.shippingRegion || null;
                     discount = Number(resp.discount) || 0;
                     total = Number(resp.total) || (subtotal + shipping - discount);
                     appliedCoupon = resp.coupon || null;
@@ -1589,9 +1824,10 @@
                     if (couponCode) {
                         Notifications.warning('Cupom não pôde ser aplicado: ' + err.message);
                         localStorage.removeItem('applied_coupon');
-                        const resp = await API.checkout(payloadItems);
+                        const resp = await API.checkout(payloadItems, undefined, getCheckoutCepForPricing());
                         subtotal = Number(resp.subtotal) || 0;
                         shipping = Number(resp.shipping) || 0;
+                        shippingRegion = resp.shippingRegion || null;
                         discount = Number(resp.discount) || 0;
                         total = Number(resp.total) || (subtotal + shipping - discount);
                     } else {
@@ -1601,8 +1837,10 @@
 
                 // Atualizar resumo
                 document.getElementById('summary-subtotal').textContent = formatBRL(subtotal);
-                if (document.getElementById('summary-shipping')) {
-                    document.getElementById('summary-shipping').textContent = formatBRL(shipping);
+                const shippingValue = document.getElementById('summary-shipping');
+                if (shippingValue) shippingValue.textContent = `+ ${formatBRL(shipping)}`;
+                if (typeof renderShippingInfoWithPrice === 'function') {
+                    renderShippingInfoWithPrice(shipping, shippingRegion);
                 }
                 if (document.getElementById('summary-discount')) {
                     document.getElementById('summary-discount').textContent = formatBRL(discount);
@@ -1634,6 +1872,7 @@
                     cart,
                     subtotal,
                     shipping,
+                    shippingRegion,
                     discount,
                     total,
                     couponCode: appliedCoupon ? appliedCoupon.code : null,
@@ -1673,6 +1912,7 @@
                     discount,
                     total,
                     couponCode: couponCode || null,
+                    cep,
                     address: { cep, numero, rua, bairro, cidade, complemento },
                     items: cart.map(item => ({
                         productId: item.productId,

@@ -110,6 +110,7 @@ CREATE TABLE IF NOT EXISTS orders (
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     subtotal NUMERIC(10, 2) NOT NULL,
     shipping NUMERIC(10, 2) DEFAULT 25.00,
+    shipping_address JSONB DEFAULT '{}'::jsonb,
     discount NUMERIC(10, 2) DEFAULT 0,
     total NUMERIC(10, 2) NOT NULL,
     coupon_code VARCHAR(40),

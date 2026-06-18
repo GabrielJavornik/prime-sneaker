@@ -8,13 +8,15 @@ const { ORDER_STATUS } = require('../services/orderStatusService');
 const PaymentController = {
     async previewPix(req, res, next) {
         try {
-            const { couponCode, items } = req.body;
+            const { couponCode, items, cep, postalCode, shippingCep, address } = req.body;
 
             if (!items || !Array.isArray(items) || items.length === 0) {
                 return res.status(400).json({ error: 'Sem itens para gerar PIX' });
             }
 
-            const pricing = await orderPricingService.calculateOrderPricing(items, couponCode);
+            const pricing = await orderPricingService.calculateOrderPricing(items, couponCode, {
+                cep: cep || postalCode || shippingCep || address?.cep,
+            });
             const pixInfo = await pixService.generateQRCode(pricing.total, {
                 txid: `PS${Date.now()}`,
                 description: 'Prime Sneaker',
@@ -24,6 +26,7 @@ const PaymentController = {
                 ...pixInfo,
                 subtotal: pricing.subtotal,
                 shipping: pricing.shipping,
+                shippingRegion: pricing.shippingRegion,
                 discount: pricing.discount,
                 total: pricing.total,
                 coupon: pricing.appliedCoupon ? {
@@ -38,7 +41,7 @@ const PaymentController = {
 
     async checkout(req, res, next) {
         try {
-            const { couponCode, items } = req.body;
+            const { couponCode, items, cep, postalCode, shippingCep, address } = req.body;
             const userId = req.user.id;
 
             if (!items || !Array.isArray(items) || items.length === 0) {
@@ -49,6 +52,8 @@ const PaymentController = {
                 userId,
                 items,
                 couponCode,
+                cep: cep || postalCode || shippingCep || address?.cep,
+                address,
                 status: ORDER_STATUS.WAITING_PAYMENT,
             });
 
@@ -67,6 +72,7 @@ const PaymentController = {
                 orderId: order.id,
                 subtotal: order.subtotal,
                 shipping: order.shipping,
+                shippingRegion: pricing.shippingRegion,
                 discount: order.discount,
                 total: order.total,
                 coupon: pricing.appliedCoupon ? {

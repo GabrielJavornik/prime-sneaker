@@ -20,7 +20,7 @@ const UserModel = {
         const result = await db.query(
             `INSERT INTO users (name, email, password, phone, cpf, is_admin, is_super_admin)
              VALUES ($1, $2, $3, $4, $5, $6, $7)
-             RETURNING id, name, email, phone, is_admin, is_super_admin`,
+             RETURNING id, name, email, phone, cpf, cep, address, is_admin, is_super_admin`,
             [name, email, password, phone || null, cpf || null, isAdmin, isSuperAdmin]
         );
         return result.rows[0];

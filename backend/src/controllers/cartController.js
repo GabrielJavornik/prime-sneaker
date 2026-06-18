@@ -60,13 +60,16 @@ const CartController = {
 
     async checkout(req, res, next) {
         try {
-            const { items = [], coupon } = req.body;
-            const pricing = await orderPricingService.calculateOrderPricing(items, coupon);
+            const { items = [], coupon, cep, postalCode, shippingCep } = req.body;
+            const pricing = await orderPricingService.calculateOrderPricing(items, coupon, {
+                cep: cep || postalCode || shippingCep,
+            });
 
             res.status(200).json({
                 items: pricing.items,
                 subtotal: pricing.subtotal,
                 shipping: pricing.shipping,
+                shippingRegion: pricing.shippingRegion,
                 discount: pricing.discount,
                 coupon: pricing.appliedCoupon ? {
                     code: pricing.appliedCoupon.code,

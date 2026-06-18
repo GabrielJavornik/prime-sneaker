@@ -105,6 +105,49 @@ router.get('/newsletter/subscribers', basicAuthAdmin, async (req, res, next) => 
     }
 });
 
+router.patch('/newsletter/subscribers/:id', basicAuthAdmin, async (req, res, next) => {
+    try {
+        const id = Number(req.params.id);
+        const active = Boolean(req.body.active);
+
+        if (!Number.isInteger(id) || id <= 0) {
+            return res.status(400).json({
+                error: 'Inscrito invalido',
+                status: 400,
+            });
+        }
+
+        const result = await db.query(
+            `UPDATE newsletter_subscribers
+             SET active = $1
+             WHERE id = $2
+             RETURNING id, email, active, created_at`,
+            [active, id]
+        );
+
+        if (!result.rows[0]) {
+            return res.status(404).json({
+                error: 'Inscrito nao encontrado',
+                status: 404,
+            });
+        }
+
+        await logAdminAction(req, {
+            action: active ? 'newsletter.subscriber.activate' : 'newsletter.subscriber.deactivate',
+            entityType: 'newsletter_subscriber',
+            entityId: id,
+            details: {
+                email: result.rows[0].email,
+                active,
+            },
+        });
+
+        res.status(200).json(result.rows[0]);
+    } catch (err) {
+        next(err);
+    }
+});
+
 router.post('/newsletter/promotion/test', basicAuthAdmin, async (req, res, next) => {
     try {
         const payload = normalizePromotionPayload(req.body);

@@ -144,6 +144,19 @@ function getLoggedUser() {
     }
 }
 
+function clearSharedCheckoutState() {
+    try {
+        [
+            'cep_entrega',
+            'cep_entrega_guest',
+            'endereco_salvo',
+            'applied_coupon',
+            'pending_order',
+        ].forEach(key => localStorage.removeItem(key));
+        window._checkoutAddress = null;
+    } catch (_) {}
+}
+
 function getAdminUser() {
     try {
         // A sessão admin fica em sessionStorage — expira ao fechar o navegador
@@ -163,7 +176,7 @@ function logout() {
     sessionStorage.removeItem('user');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    localStorage.removeItem('applied_coupon');
+    clearSharedCheckoutState();
     window.location.replace('index.html');
 }
 

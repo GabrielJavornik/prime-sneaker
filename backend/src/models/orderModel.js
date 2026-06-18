@@ -14,11 +14,11 @@ function appendDateRangeFilters(whereParts, params, column, { startDate, endDate
 }
 
 const OrderModel = {
-    async create({ userId, couponCode, items, status = ORDER_STATUS.WAITING_PAYMENT }) {
+    async create({ userId, couponCode, items, status = ORDER_STATUS.WAITING_PAYMENT, cep = null, address = null }) {
         // Compatibilidade: qualquer criacao de pedido deve passar pelo servico
         // unico/transacional de checkout, nunca gravar valores recebidos de fora.
         const { createOrderWithPricing } = require('../services/orderPricingService');
-        const { order } = await createOrderWithPricing({ userId, items, couponCode, status });
+        const { order } = await createOrderWithPricing({ userId, items, couponCode, status, cep, address });
         return order;
     },
 

@@ -972,38 +972,63 @@ async function loadNewsletterSubscribers() {
     const tbody = document.querySelector('#newsletter-table tbody');
     const countEl = document.getElementById('newsletter-count');
     const recipientCountEl = document.getElementById('promo-recipient-count');
-    if (!tbody || !countEl) return;
+    if (!countEl && !recipientCountEl && !tbody) return;
 
     try {
         const subscribers = await API.listNewsletterSubscribers(getAdminAuthHeader());
         const activeCount = subscribers.filter(sub => sub.active).length;
         _newsletterActiveCount = activeCount;
-        countEl.textContent = activeCount;
+        if (countEl) countEl.textContent = activeCount;
         if (recipientCountEl) recipientCountEl.textContent = activeCount;
         updatePromotionPreview();
 
+        if (!tbody) return;
+
         if (!subscribers.length) {
-            tbody.innerHTML = '<tr><td colspan="3" style="color: var(--muted); text-align: center;">Nenhum inscrito ainda.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="color: var(--muted); text-align: center;">Nenhum inscrito ainda.</td></tr>';
             return;
         }
 
         tbody.innerHTML = subscribers.map(sub => {
             const created = formatAdminDate(sub.created_at);
             const status = sub.active
-                ? '<span style="color: var(--success); font-weight: 700;">Ativo</span>'
-                : '<span style="color: var(--muted);">Inativo</span>';
+                ? '<span class="admin-status-chip status-delivered">Recebe</span>'
+                : '<span class="admin-status-chip status-cancelled">Não recebe</span>';
+            const nextActive = sub.active ? 'false' : 'true';
+            const actionLabel = sub.active ? 'Não receber' : 'Receber';
+            const actionClass = sub.active ? 'btn-delete' : 'btn-primary';
 
             return `
                 <tr>
                     <td><strong>${escapeHTML(sub.email)}</strong></td>
                     <td>${status}</td>
                     <td>${created}</td>
+                    <td>
+                        <button
+                            type="button"
+                            class="${actionClass}"
+                            onclick="toggleNewsletterSubscriber(${Number(sub.id)}, ${nextActive})"
+                        >
+                            ${actionLabel}
+                        </button>
+                    </td>
                 </tr>
             `;
         }).join('');
     } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="3" style="color: var(--danger);">Erro ao carregar inscritos: ${escapeHTML(err.message)}</td></tr>`;
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="4" style="color: var(--danger);">Erro ao carregar inscritos: ${escapeHTML(err.message)}</td></tr>`;
+        }
         toast('Erro ao carregar inscritos: ' + err.message, 'error');
+    }
+}
+
+async function toggleNewsletterSubscriber(id, active) {
+    try {
+        await API.updateNewsletterSubscriber(id, { active }, getAdminAuthHeader());
+        await loadNewsletterSubscribers();
+    } catch (err) {
+        toast('Erro ao atualizar inscrito: ' + err.message, 'error');
     }
 }
 
@@ -2329,6 +2354,87 @@ function renderAdminOrdersPagination(pagination = {}) {
     `;
 }
 
+function normalizeAdminOrderAddress(order = {}) {
+    let raw = order.shipping_address || order.shippingAddress || {};
+    if (typeof raw === 'string') {
+        try {
+            raw = JSON.parse(raw);
+        } catch (err) {
+            raw = {};
+        }
+    }
+
+    const city = raw.cidade || raw.city || '';
+    const state = raw.estado || raw.state || raw.uf || '';
+
+    return {
+        cep: raw.cep || raw.postalCode || raw.shippingCep || '',
+        rua: raw.rua || raw.street || raw.address || '',
+        numero: raw.numero || raw.number || '',
+        complemento: raw.complemento || raw.complement || '',
+        bairro: raw.bairro || raw.neighborhood || '',
+        cidade: city && state && !String(city).includes(state) ? `${city}/${state}` : city || state,
+    };
+}
+
+function hasAdminOrderAddress(address) {
+    return Object.values(address || {}).some(value => String(value || '').trim());
+}
+
+function formatAdminOrderAddressLine(address) {
+    const street = [address.rua, address.numero].filter(Boolean).join(', ');
+    return [
+        address.cep ? `CEP ${address.cep}` : '',
+        street,
+        address.complemento ? `Complemento: ${address.complemento}` : '',
+        address.bairro,
+        address.cidade,
+    ].filter(Boolean).join(' · ');
+}
+
+function renderAdminOrderAddressSummary(order) {
+    const address = normalizeAdminOrderAddress(order);
+    if (!hasAdminOrderAddress(address)) {
+        return '<br><strong>Entrega:</strong> <span class="admin-order-address-summary is-empty">Endereço não informado neste pedido</span>';
+    }
+
+    return `<br><strong>Entrega:</strong> <span class="admin-order-address-summary">${escapeHTML(formatAdminOrderAddressLine(address))}</span>`;
+}
+
+function renderAdminOrderAddressBlock(order) {
+    const address = normalizeAdminOrderAddress(order);
+    if (!hasAdminOrderAddress(address)) {
+        return `
+            <div class="admin-order-address-card is-empty">
+                <strong>Endereço de entrega</strong>
+                <span>Endereço não informado neste pedido.</span>
+            </div>
+        `;
+    }
+
+    const fields = [
+        ['CEP', address.cep],
+        ['Rua', [address.rua, address.numero].filter(Boolean).join(', ')],
+        ['Bairro', address.bairro],
+        ['Cidade/UF', address.cidade],
+        ['Complemento', address.complemento],
+    ].filter(([, value]) => String(value || '').trim());
+
+    return `
+        <div class="admin-order-address-card">
+            <strong>Endereço de entrega</strong>
+            <div class="admin-order-address-grid">
+                ${fields.map(([label, value]) => `
+                    <div>
+                        <span>${escapeHTML(label)}</span>
+                        <b>${escapeHTML(value)}</b>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
 function renderAdminOrderCard(order) {
     const meta = ORDER_STATUS_META[order.status] || ORDER_STATUS_META.pendente;
     const actions = nextActionsForStatus(order.status);
@@ -2356,6 +2462,7 @@ function renderAdminOrderCard(order) {
                         ${order.customer_phone ? `<br><strong>Telefone:</strong> ${customerPhone}` : ''}
                         <br><strong>Itens:</strong> ${order.item_count || 0}
                         | <strong>Total:</strong> ${formatBRL(order.total)}
+                        ${renderAdminOrderAddressSummary(order)}
                         <br><small style="color: var(--muted);">Criado em ${created}</small>
                     </div>
                 </div>
@@ -2504,6 +2611,7 @@ async function viewOrderDetail(orderId) {
             return;
         }
         box.innerHTML = `
+            ${renderAdminOrderAddressBlock(order)}
             <strong class="admin-order-detail-title">Itens do pedido:</strong>
             <div class="admin-table-wrapper admin-order-items-wrapper" style="--admin-table-min-width: 760px;">
             <table class="admin-order-items-table">

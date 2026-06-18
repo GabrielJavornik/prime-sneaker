@@ -19,10 +19,42 @@ let couponDraft = '';
 let cepValidado = false;
 const CEP_STORAGE_KEY = 'cep_entrega';
 
+function getCepStorageKey() {
+    const user = typeof getLoggedUser === 'function' ? getLoggedUser() : null;
+    return user && user.id ? `${CEP_STORAGE_KEY}_${user.id}` : `${CEP_STORAGE_KEY}_guest`;
+}
+
+function removeLegacyCepStorage() {
+    try {
+        localStorage.removeItem(CEP_STORAGE_KEY);
+    } catch (_) {}
+}
+
 // Dados do perfil necessarios pro checkout
 let perfilUsuario = null;
 let perfilCarregado = false;
 const stockCache = {};
+
+function getDeliveryCep() {
+    const cepInput = document.getElementById('cep-input');
+    const typedCep = cepInput ? cepInput.value : '';
+    if (String(typedCep || '').replace(/\D/g, '').length === 8) return typedCep;
+
+    try {
+        const saved = JSON.parse(localStorage.getItem(getCepStorageKey()) || 'null');
+        return saved?.cep || '';
+    } catch (_) {
+        return '';
+    }
+}
+
+function hasDeliveryCep() {
+    return String(getDeliveryCep() || '').replace(/\D/g, '').length === 8;
+}
+
+function formatShippingSummary() {
+    return cepValidado ? formatBRL(summary.shipping) : 'Informe o CEP';
+}
 
 function renderSafeDeliveryAddress(data = {}) {
     const street = escapeHTML(data.logradouro || '');
@@ -34,6 +66,56 @@ function renderSafeDeliveryAddress(data = {}) {
       <strong>Entrega em:</strong><br>
       ${street}${district}<br>
       ${city}/${state}
+    `;
+}
+
+function getRegiaoPorCep(cep) {
+    const digits = String(cep || '').replace(/\D/g, '');
+    if (digits.length !== 8) return null;
+    const prefix = Number(digits.substring(0, 5));
+    if (!Number.isFinite(prefix)) return null;
+
+    if (prefix >= 1000 && prefix <= 39999) return { key: 'sudeste', label: 'Sudeste' };
+    if (prefix >= 40000 && prefix <= 65999) return { key: 'nordeste', label: 'Nordeste' };
+    if (prefix >= 66000 && prefix <= 69999) return { key: 'norte', label: 'Norte' };
+    if (prefix >= 70000 && prefix <= 76799) return { key: 'centro-oeste', label: 'Centro-Oeste' };
+    if (prefix >= 76800 && prefix <= 77999) return { key: 'norte', label: 'Norte' };
+    if (prefix >= 78000 && prefix <= 78899) return { key: 'centro-oeste', label: 'Centro-Oeste' };
+    if (prefix >= 78900 && prefix <= 78999) return { key: 'norte', label: 'Norte' };
+    if (prefix >= 79000 && prefix <= 79999) return { key: 'centro-oeste', label: 'Centro-Oeste' };
+    if (prefix >= 80000 && prefix <= 99999) return { key: 'sul', label: 'Sul' };
+    return null;
+}
+
+function renderDeliveryRegionFallback(region) {
+    return renderDeliveryRegionPrice(region);
+}
+
+function clearDeliveryCepState(message = 'Selecione um CEP para ver o endereço') {
+    cepValidado = false;
+    summary = buildLocalCartSummary();
+    localStorage.removeItem(getCepStorageKey());
+    removeLegacyCepStorage();
+
+    const display = document.getElementById('address-display');
+    if (display) display.textContent = message;
+
+    atualizarBotaoFinalizar();
+}
+
+function renderDeliveryRegionPrice(region) {
+    const shippingByRegion = {
+        sul: 'R$ 15,00',
+        sudeste: 'R$ 25,00',
+        'centro-oeste': 'R$ 30,00',
+        norte: 'R$ 35,00',
+        nordeste: 'R$ 45,00',
+    };
+    const amount = shippingByRegion[region.key] || 'R$ 25,00';
+
+    return `
+      <strong>${escapeHTML(region.label)}: ${amount}</strong><br>
+      Complete o endere&ccedil;o na finaliza&ccedil;&atilde;o da compra.
     `;
 }
 
@@ -75,7 +157,7 @@ function buildLocalCartSummary(items = Cart.getItems()) {
         subtotal,
         shipping: 0,
         discount: 0,
-        total: subtotal,
+        total: Number(subtotal.toFixed(2)),
         coupon: null,
     };
 }
@@ -94,8 +176,15 @@ async function recalc() {
     summary = buildLocalCartSummary();
     renderPage();
 
+    if (!hasDeliveryCep()) {
+        return;
+    }
+    if (!cepValidado) {
+        return;
+    }
+
     try {
-        const resp = await API.checkout(items, couponCode || undefined);
+        const resp = await API.checkout(items, couponCode || undefined, getDeliveryCep());
         summary = resp;
         couponDraft = resp.coupon ? resp.coupon.code : '';
         couponMessage = '';
@@ -107,7 +196,7 @@ async function recalc() {
         toast(isCouponError ? msg : 'N\u00e3o foi poss\u00edvel atualizar o carrinho', 'error');
         // Ainda renderiza sem o cupom se o erro foi de cupom
         if (isCouponError) {
-            const resp = await API.checkout(items).catch(() => null);
+            const resp = await API.checkout(items, undefined, getDeliveryCep()).catch(() => null);
             if (resp) { summary = resp; renderPage(); }
         } else {
             summary = buildLocalCartSummary();
@@ -156,13 +245,8 @@ function renderPage() {
         </div>
         <div class="summary-row">
           <span>Frete:</span>
-          <span>${summary.shipping === 0 ? 'GRATIS' : formatBRL(summary.shipping)}</span>
+          <span>${formatShippingSummary()}</span>
         </div>
-        ${summary.subtotal > 0 && summary.subtotal < 200 ? `
-          <div style="font-size: 0.8rem; color: var(--warning); margin-bottom: 0.5rem;">
-            Faltam ${formatBRL(200 - summary.subtotal)} para frete gr\u00e1tis!
-          </div>
-        ` : ''}
         ${summary.discount > 0 ? `
           <div class="summary-row" style="color: var(--success);">
             <span>Desconto (${escapeHTML(summary.coupon.code)} -${escapeHTML(summary.coupon.discount_percent)}%):</span>
@@ -215,14 +299,8 @@ function renderPage() {
 
         <div class="summary-row" style="font-size: 0.95rem; margin-bottom: 1rem;">
           <span>Frete</span>
-          <span>${summary.shipping === 0 ? 'GRÁTIS 🎁' : formatBRL(summary.shipping)}</span>
+          <span>${formatShippingSummary()}</span>
         </div>
-
-        ${summary.subtotal > 0 && summary.subtotal < 200 ? `
-          <div style="background: #fff3cd; padding: 0.8rem; border-radius: 4px; font-size: 0.85rem; color: #856404; margin-bottom: 1rem; text-align: center;">
-            Faltam ${formatBRL(200 - summary.subtotal)} para frete grátis!
-          </div>
-        ` : ''}
 
         ${summary.discount > 0 ? `
           <div class="summary-row" style="color: var(--success); font-size: 0.95rem; margin-bottom: 1rem;">
@@ -276,7 +354,7 @@ function renderPage() {
             if (v.length > 5) v = v.substring(0, 5) + '-' + v.substring(5, 8);
             e.target.value = v;
             // Invalida CEP validado se usuario alterar o campo
-            cepValidado = false;
+            clearDeliveryCepState('Informe o CEP e clique em OK para calcular o frete.');
             atualizarBotaoFinalizar();
         });
         cepInput.addEventListener('blur', () => {
@@ -286,13 +364,16 @@ function renderPage() {
 
         // Restaura CEP previamente validado, se houver
         try {
-            const saved = JSON.parse(localStorage.getItem(CEP_STORAGE_KEY) || 'null');
+            removeLegacyCepStorage();
+            const saved = JSON.parse(localStorage.getItem(getCepStorageKey()) || 'null');
             if (saved && saved.cep && saved.address) {
                 cepInput.value = saved.cep;
                 const display = document.getElementById('address-display');
                 if (display) {
                     if (saved.data && typeof saved.data === 'object') {
                         display.innerHTML = renderSafeDeliveryAddress(saved.data);
+                    } else if (saved.region && typeof saved.region === 'object') {
+                        display.innerHTML = renderDeliveryRegionPrice(saved.region);
                     } else {
                         display.textContent = String(saved.address || '');
                     }
@@ -466,35 +547,57 @@ async function buscarCep() {
     const cep = cepInput.value.replace(/\D/g, '');
     if (cep.length !== 8) {
         display.textContent = 'CEP deve ter 8 digitos.';
-        cepValidado = false;
+        clearDeliveryCepState('CEP deve ter 8 digitos.');
         atualizarBotaoFinalizar();
         return;
     }
+
+    const region = getRegiaoPorCep(cep);
+    if (!region) {
+        clearDeliveryCepState('CEP invalido.');
+        atualizarBotaoFinalizar();
+        await recalc();
+        return;
+    }
+
     display.textContent = 'Buscando...';
     try {
         const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
         const data = await res.json();
         if (data.erro) {
-            display.textContent = 'CEP n\u00e3o encontrado.';
-            cepValidado = false;
+            display.innerHTML = renderDeliveryRegionPrice(region);
             atualizarBotaoFinalizar();
-            return;
+        } else {
+            const addressHtml = renderSafeDeliveryAddress(data);
+            display.innerHTML = addressHtml;
         }
-        const addressHtml = renderSafeDeliveryAddress(data);
-        display.innerHTML = addressHtml;
+
         cepValidado = true;
         try {
-            localStorage.setItem(CEP_STORAGE_KEY, JSON.stringify({
+            localStorage.setItem(getCepStorageKey(), JSON.stringify({
                 cep: cepInput.value,
                 address: display.textContent,
-                data,
+                data: data && !data.erro ? data : null,
+                region,
             }));
+            removeLegacyCepStorage();
         } catch (_) {}
         atualizarBotaoFinalizar();
+        await recalc();
     } catch (err) {
-        display.textContent = 'Erro ao buscar CEP.';
-        cepValidado = false;
+        display.innerHTML = renderDeliveryRegionPrice(region);
+        cepValidado = true;
+        try {
+            localStorage.setItem(getCepStorageKey(), JSON.stringify({
+                cep: cepInput.value,
+                address: display.textContent,
+                data: null,
+                region,
+            }));
+            removeLegacyCepStorage();
+        } catch (_) {}
         atualizarBotaoFinalizar();
+        await recalc();
     }
 }
 

@@ -17,6 +17,7 @@ async function ensureSchema() {
         `ALTER TABLE coupons ADD COLUMN IF NOT EXISTS uses_count INTEGER DEFAULT 0`,
         `ALTER TABLE coupons ADD COLUMN IF NOT EXISTS min_value NUMERIC(10, 2) DEFAULT 0`,
         `ALTER TABLE coupons ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT TRUE`,
+        `ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_address JSONB DEFAULT '{}'::jsonb`,
         `ALTER TABLE products ADD COLUMN IF NOT EXISTS brand VARCHAR(80)`,
         `ALTER TABLE products ADD COLUMN IF NOT EXISTS model_group VARCHAR(120)`,
         `ALTER TABLE products ADD COLUMN IF NOT EXISTS gender VARCHAR(20) DEFAULT 'unissex'`,
@@ -80,6 +81,19 @@ async function ensureSchema() {
             UNIQUE(user_id, product_id, size)
         )`,
         `CREATE INDEX IF NOT EXISTS idx_cart_items_user_id ON cart_items(user_id)`,
+        `DO $$
+         BEGIN
+            IF EXISTS (
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                  AND table_name = 'addresses'
+            ) THEN
+                ALTER TABLE addresses ADD COLUMN IF NOT EXISTS neighborhood VARCHAR(120);
+                ALTER TABLE addresses ADD COLUMN IF NOT EXISTS country VARCHAR(80);
+                ALTER TABLE addresses ADD COLUMN IF NOT EXISTS type VARCHAR(30);
+            END IF;
+         END $$`,
     ];
     for (const sql of stmts) {
         try { await db.query(sql); } catch (_) { /* tabela ainda nao criada */ }

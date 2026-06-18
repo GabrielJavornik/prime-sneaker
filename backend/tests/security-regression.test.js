@@ -297,7 +297,7 @@ test('checkout incrementa uso de cupom com limite dentro da transacao do pedido'
     assert.match(createOrderServiceBlock, /Cupom expirado ou limite de usos atingido/);
     assert.match(createOrderServiceBlock, /await client\.query\('COMMIT'\)/);
     assert.match(createOrderServiceBlock, /await client\.query\('ROLLBACK'\)/);
-    assert.match(orderModel, /createOrderWithPricing\(\{ userId, items, couponCode, status \}\)/);
+    assert.match(orderModel, /createOrderWithPricing\(\{ userId, items, couponCode, status, cep, address \}\)/);
     assert.match(orderController, /orderPricingService\.createOrderWithPricing/);
     assert.match(paymentController, /orderPricingService\.createOrderWithPricing/);
     assert.match(cartController, /orderPricingService\.calculateOrderPricing/);
@@ -738,7 +738,7 @@ test('previa PIX nao cria pedido antes da confirmacao do cliente', () => {
     const createOrderBlock = extractBalancedBlock(checkout, /async function createOrder\(/);
 
     assert.match(routes, /router\.post\('\/pix-preview',\s*verifyToken,\s*PaymentController\.previewPix\)/);
-    assert.match(previewBlock, /orderPricingService\.calculateOrderPricing\(items,\s*couponCode\)/);
+    assert.match(previewBlock, /orderPricingService\.calculateOrderPricing\(items,\s*couponCode(?:,\s*\{[\s\S]*?\})?\)/);
     assert.match(previewBlock, /pixService\.generateQRCode\(pricing\.total/);
     assert.doesNotMatch(previewBlock, /createOrderWithPricing|OrderModel\.create|PixTransactionModel\.create|incrementUses|decrementCheckoutStock/);
     assert.match(checkout, /fetch\('\/api\/payments\/pix-preview'/);
@@ -986,7 +986,7 @@ test('carrinho le cupom antes de renderizar a tela novamente', () => {
     assert.notEqual(readIndex, -1);
     assert.notEqual(renderIndex, -1);
     assert.ok(readIndex < renderIndex, 'cupom precisa ser lido antes de renderPage recriar o input');
-    assert.match(recalcBlock, /API\.checkout\(items,\s*couponCode\s*\|\|\s*undefined\)/);
+    assert.match(recalcBlock, /API\.checkout\(items,\s*couponCode\s*\|\|\s*undefined(?:,\s*getDeliveryCep\(\))?\)/);
 });
 
 test('admin produtos e cupons usam paginacao de 10 em 10', () => {
@@ -1366,7 +1366,8 @@ test('painel admin usa paleta operacional recomendada', () => {
     assert.match(adminCss, /body\[data-page="admin"\][\s\S]*background:\s*var\(--admin-bg\)/);
     assert.match(adminCss, /body\[data-page="admin"\] \.admin-sidebar[\s\S]*background:\s*var\(--admin-sidebar\)/);
     assert.match(adminCss, /body\[data-page="admin"\] \.admin-sidebar button:hover,[\s\S]*background:\s*var\(--admin-primary\)/);
-    assert.match(adminCss, /body\[data-page="admin"\] \.admin-dashboard-hero h2,[\s\S]*color:\s*#FFFFFF/);
+    assert.match(adminCss, /body\[data-page="admin"\] \.admin-dashboard-hero h2,[\s\S]*color:\s*var\(--admin-text\)/);
+    assert.match(adminCss, /body\[data-page="admin"\] \.admin-dashboard-hero p\s*\{[\s\S]*color:\s*var\(--admin-muted\)/);
     assert.match(extractBetween(adminCss, /\.admin-products-toolbar\s*\{/, /\n\}/), /grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(168px,\s*100%\),\s*1fr\)\)/);
     assert.match(extractBetween(adminCss, /\.admin-audit-toolbar\s*\{/, /\n\}/), /grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(168px,\s*100%\),\s*1fr\)\)/);
     assert.match(extractBetween(adminCss, /\.admin-products-toolbar-actions\s*\{/, /\n\}/), /flex-wrap:\s*wrap/);

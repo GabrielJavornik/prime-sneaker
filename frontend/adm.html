@@ -91,14 +91,24 @@
                     <!-- TAB: Dashboard -->
                     <div id="tab-dashboard" class="is-hidden">
                         <div class="admin-dashboard-hero">
-                            <div>
-                                <h2>O que precisa de aten&ccedil;&atilde;o agora</h2>
-                                <p>Pedidos, pagamentos, estoque cr&iacute;tico e vendas recentes em uma primeira tela mais operacional.</p>
+                            <div class="admin-dashboard-hero-copy">
+                                <span class="admin-dashboard-kicker">Resumo operacional</span>
+                                <h2>Prioridades do painel</h2>
+                                <p>Acompanhe pedidos, pagamentos e estoque sem perder tempo procurando pelas abas.</p>
                             </div>
-                            <div class="admin-dashboard-actions">
-                                <button type="button" onclick="showTab('pedidos')">Ver pedidos</button>
-                                <button type="button" onclick="showTab('estoque')">Estoque baixo</button>
-                                <button type="button" onclick="showTab('products')">Adicionar produto</button>
+                            <div class="admin-dashboard-actions" aria-label="A&ccedil;&otilde;es r&aacute;pidas do painel">
+                                <button type="button" onclick="showTab('pedidos')">
+                                    <strong>Pedidos</strong>
+                                    <span>Ver fila de compras</span>
+                                </button>
+                                <button type="button" onclick="showTab('estoque')">
+                                    <strong>Estoque</strong>
+                                    <span>Conferir alertas</span>
+                                </button>
+                                <button type="button" onclick="showTab('products')">
+                                    <strong>Novo produto</strong>
+                                    <span>Cadastrar item</span>
+                                </button>
                             </div>
                         </div>
 
@@ -676,17 +686,21 @@
                         </div>
 
                         <h3>Inscritos</h3>
-                        <div class="admin-table-wrapper admin-table-min-620" tabindex="0" aria-label="Tabela com rolagem horizontal">
+                        <p class="admin-section-description">
+                            Marque quem deve receber os e-mails de promo&ccedil;&atilde;o.
+                        </p>
+                        <div class="admin-table-wrapper admin-table-min-620" tabindex="0" aria-label="Tabela de inscritos da newsletter">
                             <table id="newsletter-table">
                                 <thead>
                                     <tr>
                                         <th>Email</th>
                                         <th>Status</th>
                                         <th>Inscri&ccedil;&atilde;o</th>
+                                        <th>A&ccedil;&otilde;es</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr><td colspan="3" class="admin-muted-loading">Carregando...</td></tr>
+                                    <tr><td colspan="4" class="admin-muted-loading">Carregando...</td></tr>
                                 </tbody>
                             </table>
                         </div>

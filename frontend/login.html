@@ -72,6 +72,9 @@
                 sessionStorage.setItem('user', JSON.stringify(resp.user));
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
+                if (typeof clearSharedCheckoutState === 'function') {
+                    clearSharedCheckoutState();
+                }
                 if (typeof Cart !== 'undefined' && typeof Cart.mergeGuestCartToCurrentUser === 'function') {
                     await Cart.mergeGuestCartToCurrentUser();
                 }

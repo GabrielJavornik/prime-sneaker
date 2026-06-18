@@ -3,8 +3,13 @@ const CouponModel = require('../models/couponModel');
 const { getProductSalePrice, getProductDiscountPercent } = require('./productPricingService');
 const { ORDER_STATUS, normalizeOrderStatus } = require('./orderStatusService');
 
-const FREE_SHIPPING_MIN_SUBTOTAL = 200;
-const DEFAULT_SHIPPING = 25;
+const SHIPPING_BY_REGION = {
+    sul: { label: 'Sul', amount: 15 },
+    sudeste: { label: 'Sudeste', amount: 25 },
+    centroOeste: { label: 'Centro-Oeste', amount: 30 },
+    norte: { label: 'Norte', amount: 35 },
+    nordeste: { label: 'Nordeste', amount: 45 },
+};
 const MAX_CHECKOUT_ITEMS = 100;
 
 function formatBRL(value) {
@@ -22,6 +27,38 @@ function makeHttpError(message, status = 400) {
 
 function getQueryRunner(queryRunner) {
     return queryRunner && typeof queryRunner.query === 'function' ? queryRunner : db;
+}
+
+function resolveShippingByCep(cep) {
+    const digits = String(cep || '').replace(/\D/g, '');
+    if (digits.length !== 8) return null;
+
+    const prefix = Number(digits.substring(0, 5));
+    if (!Number.isFinite(prefix)) return null;
+
+    if (prefix >= 1000 && prefix <= 39999) return SHIPPING_BY_REGION.sudeste;
+    if (prefix >= 40000 && prefix <= 65999) return SHIPPING_BY_REGION.nordeste;
+    if (prefix >= 66000 && prefix <= 69999) return SHIPPING_BY_REGION.norte;
+    if (prefix >= 70000 && prefix <= 76799) return SHIPPING_BY_REGION.centroOeste;
+    if (prefix >= 76800 && prefix <= 77999) return SHIPPING_BY_REGION.norte;
+    if (prefix >= 78000 && prefix <= 78899) return SHIPPING_BY_REGION.centroOeste;
+    if (prefix >= 78900 && prefix <= 78999) return SHIPPING_BY_REGION.norte;
+    if (prefix >= 79000 && prefix <= 79999) return SHIPPING_BY_REGION.centroOeste;
+    if (prefix >= 80000 && prefix <= 99999) return SHIPPING_BY_REGION.sul;
+
+    return null;
+}
+
+function calculateShipping(cep) {
+    const region = resolveShippingByCep(cep);
+    if (!region) {
+        throw makeHttpError('CEP inválido', 400);
+    }
+
+    return {
+        amount: region.amount,
+        region: region.label,
+    };
 }
 
 function normalizeCheckoutItems(items) {
@@ -133,7 +170,8 @@ async function calculateOrderPricing(items, couponCode, options = {}) {
     }
 
     subtotal = Number(subtotal.toFixed(2));
-    const shipping = subtotal >= FREE_SHIPPING_MIN_SUBTOTAL ? 0 : DEFAULT_SHIPPING;
+    const shippingInfo = calculateShipping(options.cep || options.shippingCep || options.postalCode);
+    const shipping = shippingInfo.amount;
     let discount = 0;
     let appliedCoupon = null;
 
@@ -165,6 +203,7 @@ async function calculateOrderPricing(items, couponCode, options = {}) {
         items: normalizedItems,
         subtotal,
         shipping,
+        shippingRegion: shippingInfo.region,
         discount,
         total,
         appliedCoupon,
@@ -230,7 +269,27 @@ async function insertOrderItem(client, orderId, item) {
     );
 }
 
-async function createOrderWithPricing({ userId, items, couponCode = null, status = ORDER_STATUS.WAITING_PAYMENT }) {
+function sanitizeAddressValue(value) {
+    return String(value || '').trim().slice(0, 160);
+}
+
+function normalizeShippingAddress(address = {}, fallbackCep = null) {
+    const source = address && typeof address === 'object' ? address : {};
+    const cepDigits = String(source.cep || source.postalCode || source.shippingCep || fallbackCep || '').replace(/\D/g, '');
+    const formattedCep = cepDigits.length === 8 ? `${cepDigits.slice(0, 5)}-${cepDigits.slice(5)}` : sanitizeAddressValue(source.cep || fallbackCep);
+
+    return {
+        cep: formattedCep,
+        rua: sanitizeAddressValue(source.rua || source.street || source.address),
+        numero: sanitizeAddressValue(source.numero || source.number),
+        complemento: sanitizeAddressValue(source.complemento || source.complement),
+        bairro: sanitizeAddressValue(source.bairro || source.neighborhood),
+        cidade: sanitizeAddressValue(source.cidade || source.city),
+        estado: sanitizeAddressValue(source.estado || source.state || source.uf),
+    };
+}
+
+async function createOrderWithPricing({ userId, items, couponCode = null, status = ORDER_STATUS.WAITING_PAYMENT, cep = null, address = null }) {
     if (!Number.isInteger(Number(userId)) || Number(userId) < 1) {
         throw makeHttpError('Usuario invalido para criar pedido', 401);
     }
@@ -242,17 +301,20 @@ async function createOrderWithPricing({ userId, items, couponCode = null, status
         const pricing = await calculateOrderPricing(items, couponCode, {
             queryRunner: client,
             lockRows: true,
+            cep,
         });
         const normalizedStatus = normalizeOrderStatus(status) || ORDER_STATUS.WAITING_PAYMENT;
+        const shippingAddress = normalizeShippingAddress(address, cep);
 
         const result = await client.query(
-            `INSERT INTO orders (user_id, subtotal, shipping, discount, total, coupon_code, status)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `INSERT INTO orders (user_id, subtotal, shipping, shipping_address, discount, total, coupon_code, status)
+             VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8)
              RETURNING *`,
             [
                 userId,
                 pricing.subtotal,
                 pricing.shipping,
+                JSON.stringify(shippingAddress),
                 pricing.discount,
                 pricing.total,
                 pricing.appliedCoupon ? pricing.appliedCoupon.code : null,
@@ -285,6 +347,9 @@ async function createOrderWithPricing({ userId, items, couponCode = null, status
 
 module.exports = {
     calculateOrderPricing,
+    calculateShipping,
     createOrderWithPricing,
     formatBRL,
+    normalizeShippingAddress,
 };
+

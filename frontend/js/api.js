@@ -77,6 +77,11 @@ const API = {
     listNewsletterSubscribers: (auth) => API.request('/newsletter/subscribers', {
         headers: auth ? { Authorization: auth } : {},
     }),
+    updateNewsletterSubscriber: (id, data, auth) => API.request(`/newsletter/subscribers/${id}`, {
+        method: 'PATCH',
+        body: data,
+        headers: auth ? { Authorization: auth } : {},
+    }),
     sendNewsletterPromotion: (data, auth) => API.request('/newsletter/promotion', {
         method: 'POST',
         body: data,
@@ -109,9 +114,15 @@ const API = {
         return API.request(`/cart/items/${productId}${qs}`, { method: 'DELETE' });
     },
     clearCart: () => API.request('/cart', { method: 'DELETE' }),
-    checkout: (items, coupon) => API.request('/cart', {
+    checkout: (items, coupon, cep) => API.request('/cart', {
         method: 'POST',
-        body: { items, coupon },
+        body: { items, coupon, cep },
+    }),
+
+    getAddresses: () => API.request('/addresses'),
+    createAddress: (data) => API.request('/addresses', {
+        method: 'POST',
+        body: data,
     }),
 
     // Auth

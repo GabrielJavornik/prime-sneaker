@@ -15,7 +15,7 @@ const {
 const OrderController = {
     async create(req, res, next) {
         try {
-            const { couponCode, coupon, items } = req.body;
+            const { couponCode, coupon, items, cep, postalCode, shippingCep, address } = req.body;
             const userId = req.user.id;
 
             if (!Array.isArray(items) || items.length === 0) {
@@ -29,6 +29,8 @@ const OrderController = {
                 userId,
                 items,
                 couponCode: couponCode || coupon,
+                cep: cep || postalCode || shippingCep || address?.cep,
+                address,
                 status: ORDER_STATUS.WAITING_PAYMENT,
             });
 

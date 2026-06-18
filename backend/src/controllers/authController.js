@@ -28,9 +28,19 @@ const AuthController = {
                 });
             }
 
-            if (name.trim().length < 3 || name.trim().length > 100) {
+            const normalizedName = name.trim();
+            const nameParts = normalizedName.split(/\s+/).filter(Boolean);
+
+            if (normalizedName.length < 3 || normalizedName.length > 100) {
                 return res.status(400).json({
                     error: 'Nome deve ter entre 3 e 100 caracteres',
+                    status: 400,
+                });
+            }
+
+            if (nameParts.length < 2) {
+                return res.status(400).json({
+                    error: 'Informe nome e sobrenome',
                     status: 400,
                 });
             }
@@ -50,14 +60,12 @@ const AuthController = {
                 });
             }
 
-            if (phone) {
-                const phoneDigits = String(phone).replace(/\D/g, '');
-                if (phoneDigits.length < 10 || phoneDigits.length > 11) {
-                    return res.status(400).json({
-                        error: 'Telefone invalido',
-                        status: 400,
-                    });
-                }
+            const phoneDigits = String(phone || '').replace(/\D/g, '');
+            if (!phoneDigits || phoneDigits.length < 10 || phoneDigits.length > 11) {
+                return res.status(400).json({
+                    error: 'Telefone invalido',
+                    status: 400,
+                });
             }
 
             if (cpf && !validators.isValidCPF(cpf)) {
@@ -74,10 +82,10 @@ const AuthController = {
 
             const hash = await bcrypt.hash(password, 10);
             const user = await UserModel.create({
-                name: name.trim(),
+                name: normalizedName,
                 email: email.toLowerCase(),
                 password: hash,
-                phone: phone || null,
+                phone: String(phone || '').trim(),
                 cpf: cpf || null,
                 // Cadastro publico nunca pode promover usuario para administrador.
                 isAdmin: false,
@@ -90,7 +98,7 @@ const AuthController = {
             );
 
             res.status(201).json({
-                user: { id: user.id, name: user.name, email: user.email, phone: user.phone, is_admin: user.is_admin, is_super_admin: user.is_super_admin },
+                user: { id: user.id, name: user.name, email: user.email, phone: user.phone, cpf: user.cpf || null, cep: user.cep || null, address: user.address || null, is_admin: user.is_admin, is_super_admin: user.is_super_admin },
                 token,
             });
         } catch (err) {
@@ -133,7 +141,7 @@ const AuthController = {
             );
 
             res.status(200).json({
-                user: { id: user.id, name: user.name, email: user.email, is_admin: user.is_admin, is_super_admin: user.is_super_admin },
+                user: { id: user.id, name: user.name, email: user.email, phone: user.phone, cpf: user.cpf, cep: user.cep, address: user.address, is_admin: user.is_admin, is_super_admin: user.is_super_admin },
                 token,
             });
         } catch (err) {

@@ -336,8 +336,7 @@ function renderColorVariants(product) {
 function renderLowStockHint() {
     const stocks = Object.values(sizeStockMap).map(Number).filter(stock => stock > 0);
     if (stocks.length === 0) return '';
-    if (Math.min(...stocks) > LOW_STOCK_THRESHOLD) return '';
-    return `<div id="pdp-low-stock-hint" class="pdp-low-stock-hint">Restam poucas unidades!</div>`;
+    return `<div id="pdp-low-stock-hint" class="pdp-low-stock-hint" style="display: none;">Restam poucas unidades!</div>`;
 }
 
 function buildProductGalleryImages(product) {
@@ -416,12 +415,10 @@ function renderPDP(p) {
             ${sizes.map(s => {
                 const stock = Number(sizeStockMap[s] || 0);
                 const stockClass = stock <= 0 ? 'is-empty' : stock <= LOW_STOCK_THRESHOLD ? 'is-low-stock' : '';
-                return `<button type="button" class="${stockClass}" data-size="${escapeAttribute(s)}" title="Estoque: ${stock}"><span>${escapeHTML(s)}</span></button>`;
+                return `<button type="button" class="${stockClass}" data-size="${escapeAttribute(s)}"><span>${escapeHTML(s)}</span></button>`;
             }).join('')}
           </div>
-          <div id="size-stock-info" class="size-stock-info" style="display: none;">
-            Disponível: <strong id="stock-amount">0</strong> un.
-          </div>
+          <div id="size-stock-info" class="size-stock-info" style="display: none;"></div>
           ${renderLowStockHint()}
           <div id="size-required-warning" class="size-required-warning" hidden>
             Escolha o n\u00famero do t\u00eanis antes de adicionar ao carrinho.
@@ -467,20 +464,6 @@ function renderPDP(p) {
             selectedSize = b.dataset.size;
             clearRequiredSizeWarning();
             updateSizeStockInfo(selectedSize);
-
-            // Atualizar exibição de estoque
-            const stock = sizeStockMap[selectedSize] || 0;
-            const stockInfo = document.getElementById('size-stock-info');
-            const stockAmount = document.getElementById('stock-amount');
-            if (stockInfo && stockAmount) {
-                stockAmount.textContent = stock;
-                stockInfo.style.display = stock === 0 ? 'none' : 'block';
-                if (stock === 0) {
-                    setPurchaseButtonsDisabled(true);
-                } else {
-                    setPurchaseButtonsDisabled(false);
-                }
-            }
         });
     });
 
@@ -646,6 +629,26 @@ function setupProductCepCalculator() {
     button.addEventListener('click', calculateProductCep);
 }
 
+function getProductShippingRegion(cep) {
+    const digits = String(cep || '').replace(/\D/g, '');
+    if (digits.length !== 8) return null;
+
+    const prefix = Number(digits.substring(0, 5));
+    if (!Number.isFinite(prefix)) return null;
+
+    if (prefix >= 1000 && prefix <= 39999) return { label: 'Sudeste', amount: 'R$ 25,00' };
+    if (prefix >= 40000 && prefix <= 65999) return { label: 'Nordeste', amount: 'R$ 45,00' };
+    if (prefix >= 66000 && prefix <= 69999) return { label: 'Norte', amount: 'R$ 35,00' };
+    if (prefix >= 70000 && prefix <= 76799) return { label: 'Centro-Oeste', amount: 'R$ 30,00' };
+    if (prefix >= 76800 && prefix <= 77999) return { label: 'Norte', amount: 'R$ 35,00' };
+    if (prefix >= 78000 && prefix <= 78899) return { label: 'Centro-Oeste', amount: 'R$ 30,00' };
+    if (prefix >= 78900 && prefix <= 78999) return { label: 'Norte', amount: 'R$ 35,00' };
+    if (prefix >= 79000 && prefix <= 79999) return { label: 'Centro-Oeste', amount: 'R$ 30,00' };
+    if (prefix >= 80000 && prefix <= 99999) return { label: 'Sul', amount: 'R$ 15,00' };
+
+    return null;
+}
+
 async function calculateProductCep() {
     const input = document.getElementById('pdp-cep-input');
     const result = document.getElementById('pdp-cep-result');
@@ -659,25 +662,16 @@ async function calculateProductCep() {
         return;
     }
 
-    result.className = 'pdp-cep-result';
-    result.textContent = 'Calculando entrega...';
+    const shippingRegion = getProductShippingRegion(cep);
 
-    try {
-        const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-        const data = await response.json();
-
-        if (data.erro) {
-            result.className = 'pdp-cep-result error';
-            result.textContent = 'CEP n\u00e3o encontrado.';
-            return;
-        }
-
-        result.className = 'pdp-cep-result success';
-        result.innerHTML = `Entrega gr\u00e1tis para <strong>${escapeHTML(data.localidade)}/${escapeHTML(data.uf)}</strong>. Prazo estimado: 5 a 12 dias \u00fateis.`;
-    } catch (err) {
+    if (!shippingRegion) {
         result.className = 'pdp-cep-result error';
-        result.textContent = 'N\u00e3o foi poss\u00edvel calcular agora. Tente novamente.';
+        result.textContent = 'CEP inv\u00e1lido.';
+        return;
     }
+
+    result.className = 'pdp-cep-result success';
+    result.innerHTML = `<strong>${escapeHTML(shippingRegion.label)}: ${shippingRegion.amount}</strong>. Frete calculado para este CEP.`;
 }
 
 function showRequiredSizeWarning() {

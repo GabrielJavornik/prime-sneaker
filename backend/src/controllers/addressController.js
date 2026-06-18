@@ -12,7 +12,7 @@ const AddressController = {
 
     async createAddress(req, res, next) {
         try {
-            const { cep, street, number, complement, city, state, isDefault } = req.body;
+            const { cep, street, number, complement, neighborhood, city, state, country, type, isDefault } = req.body;
 
             if (!cep || !street || !number || !city || !state) {
                 return res.status(400).json({
@@ -26,8 +26,11 @@ const AddressController = {
                 street,
                 number,
                 complement,
+                neighborhood,
                 city,
                 state,
+                country,
+                type,
                 isDefault: !!isDefault,
             });
 
@@ -44,7 +47,7 @@ const AddressController = {
     async updateAddress(req, res, next) {
         try {
             const { id } = req.params;
-            const { cep, street, number, complement, city, state, isDefault } = req.body;
+            const { cep, street, number, complement, neighborhood, city, state, country, type, isDefault } = req.body;
 
             const address = await AddressModel.findById(id, req.user.id);
             if (!address) {
@@ -56,8 +59,11 @@ const AddressController = {
                 street,
                 number,
                 complement,
+                neighborhood,
                 city,
                 state,
+                country,
+                type,
                 isDefault,
             });
 
