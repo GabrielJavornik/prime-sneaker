@@ -12,7 +12,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /coupons:
+ * /api/coupons:
  *   get:
  *     tags: [Cupons]
  *     summary: Lista todos os cupons (admin)
@@ -27,7 +27,7 @@ router.get('/coupons', basicAuthAdmin, CouponController.list);
 
 /**
  * @swagger
- * /coupons:
+ * /api/coupons:
  *   post:
  *     tags: [Cupons]
  *     summary: Cria um cupom (admin)
@@ -54,7 +54,7 @@ router.post('/coupons', verifyToken, requireSuperAdmin, CouponController.create)
 
 /**
  * @swagger
- * /coupons/{id}:
+ * /api/coupons/{id}:
  *   put:
  *     tags: [Cupons]
  *     summary: Atualiza um cupom (admin)
@@ -74,7 +74,7 @@ router.put('/coupons/:id', verifyToken, requireSuperAdmin, CouponController.upda
 
 /**
  * @swagger
- * /coupons/{id}:
+ * /api/coupons/{id}:
  *   delete:
  *     tags: [Cupons]
  *     summary: Exclui um cupom (admin)

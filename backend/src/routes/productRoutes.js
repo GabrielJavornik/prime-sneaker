@@ -12,7 +12,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /products:
+ * /api/products:
  *   get:
  *     tags: [Produtos]
  *     summary: Lista todos os produtos
@@ -26,7 +26,7 @@ router.get('/products/facets', ProductController.facets);
 
 /**
  * @swagger
- * /products/top:
+ * /api/products/top:
  *   get:
  *     tags: [Produtos]
  *     summary: Retorna os N produtos mais recentes (padrao 4) - usado na home
@@ -42,7 +42,7 @@ router.get('/products/top', ProductController.top);
 
 /**
  * @swagger
- * /search:
+ * /api/search:
  *   get:
  *     tags: [Produtos]
  *     summary: Busca produtos com filtros e paginacao
@@ -88,7 +88,7 @@ router.get('/search', ProductController.search);
 
 /**
  * @swagger
- * /product/{id}:
+ * /api/product/{id}:
  *   get:
  *     tags: [Produtos]
  *     summary: Detalha um produto
@@ -107,7 +107,7 @@ router.get('/product/:id', ProductController.getById);
 
 /**
  * @swagger
- * /products/{id}/recommended:
+ * /api/products/{id}/recommended:
  *   get:
  *     tags: [Produtos]
  *     summary: Produtos recomendados baseado em categoria e preco
@@ -124,7 +124,7 @@ router.get('/products/:id/recommended', ProductController.getRecommended);
 
 /**
  * @swagger
- * /products/{id}/size-stock:
+ * /api/products/{id}/size-stock:
  *   get:
  *     tags: [Produtos]
  *     summary: Retorna estoque por tamanho
@@ -141,7 +141,7 @@ router.get('/products/:id/size-stock', ProductController.getSizeStock);
 
 /**
  * @swagger
- * /products/{id}/size-stock:
+ * /api/products/{id}/size-stock:
  *   post:
  *     tags: [Produtos]
  *     summary: Atualiza estoque por tamanho (admin)
@@ -177,7 +177,7 @@ router.post('/products/:id/size-stock', basicAuthAdmin, ProductController.update
 
 /**
  * @swagger
- * /products/{id}/images:
+ * /api/products/{id}/images:
  *   get:
  *     tags: [Produtos]
  *     summary: Lista imagens de um produto
@@ -194,7 +194,7 @@ router.get('/products/:id/images', ProductController.listImages);
 
 /**
  * @swagger
- * /products/{id}/images:
+ * /api/products/{id}/images:
  *   post:
  *     tags: [Produtos]
  *     summary: Adiciona uma imagem ao produto (admin)
@@ -222,7 +222,7 @@ router.post('/products/:id/images', basicAuthAdmin, ProductController.addImage);
 
 /**
  * @swagger
- * /products/images/{imageId}:
+ * /api/products/images/{imageId}:
  *   delete:
  *     tags: [Produtos]
  *     summary: Remove uma imagem (admin)
@@ -243,7 +243,7 @@ router.post('/products/images/upload', basicAuthAdmin, ProductController.uploadI
 
 /**
  * @swagger
- * /products:
+ * /api/products:
  *   post:
  *     tags: [Produtos]
  *     summary: Cadastra um novo produto (admin)
@@ -266,7 +266,7 @@ router.post('/products', basicAuthAdmin, ProductController.create);
 
 /**
  * @swagger
- * /product/{id}:
+ * /api/product/{id}:
  *   put:
  *     tags: [Produtos]
  *     summary: Atualiza um produto (admin)
@@ -287,7 +287,7 @@ router.put('/product/:id', basicAuthAdmin, ProductController.update);
 
 /**
  * @swagger
- * /product/{id}:
+ * /api/product/{id}:
  *   delete:
  *     tags: [Produtos]
  *     summary: Exclui um produto (admin)

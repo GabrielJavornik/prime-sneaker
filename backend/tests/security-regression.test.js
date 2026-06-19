@@ -1335,7 +1335,7 @@ test('painel admin tem foco visivel global para navegacao por teclado', () => {
     const adminHtml = readWorkspaceFile('frontend/adm.html');
     const adminCss = readWorkspaceFile('frontend/css/admin-panel.css');
 
-    assert.match(adminHtml, /admin-panel\.css\?v=36/);
+    assert.match(adminHtml, /admin-panel\.css\?v=\d+/);
     assert.match(adminCss, /--admin-focus-color/);
     assert.match(adminCss, /--admin-focus-shadow/);
     assert.match(adminCss, /\.admin-sidebar button,[\s\S]*\.admin-table-wrapper,[\s\S]*\.admin-pagination button,[\s\S]*\.confirm-btn-no[\s\S]*:focus-visible/);
@@ -1350,7 +1350,7 @@ test('painel admin usa paleta operacional recomendada', () => {
     const adminCss = readWorkspaceFile('frontend/css/admin-panel.css');
     const adminJs = readWorkspaceFile('frontend/js/admin.js');
 
-    assert.match(adminHtml, /admin-panel\.css\?v=36/);
+    assert.match(adminHtml, /admin-panel\.css\?v=\d+/);
     assert.match(adminHtml, /js\/admin\.js\?v=\d+/);
     assert.match(adminJs, /primeSneaker:megaMenuFacets:v4/);
     assert.match(adminCss, /--admin-bg:\s*#F5F7FA/);

@@ -187,6 +187,7 @@ function isAdminPage() {
 function renderAdminHeader() {
     const admin = getAdminUser();
     const firstName = escapeHTML(admin ? ((admin.name || '').split(' ')[0] || 'Admin') : 'Admin');
+    const isDark = getTheme() === 'dark';
 
     return `
     <header class="site-header admin-site-header">
@@ -194,6 +195,17 @@ function renderAdminHeader() {
         <a href="adm.html" class="logo"><img src="images/logo.png" alt="Prime Sneaker" class="logo-img" /></a>
         <nav class="main-nav">
           <a href="adm.html">Painel Admin</a>
+          <button type="button"
+                  id="admin-theme-toggle"
+                  class="admin-theme-toggle"
+                  aria-pressed="${isDark ? 'true' : 'false'}"
+                  aria-label="${isDark ? 'Ativar modo claro' : 'Ativar modo escuro'}"
+                  onclick="toggleAdminTheme()">
+            <span class="admin-theme-toggle__track" aria-hidden="true">
+              <span class="admin-theme-toggle__thumb"></span>
+            </span>
+            <span class="admin-theme-toggle__text">${isDark ? 'Modo claro' : 'Modo escuro'}</span>
+          </button>
           <div class="user-menu-container admin-menu-container">
             <button class="user-greet" onclick="toggleUserMenu(event)">Admin: ${firstName}</button>
             <div class="user-dropdown" id="user-dropdown">

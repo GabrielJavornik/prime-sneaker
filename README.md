@@ -263,6 +263,66 @@ A prévia do PIX não cria um pedido. O pedido é registrado quando o cliente co
 - `GET /api/admin-reports/low-stock`
 - `GET /api/admin-audit-logs`
 
+## Exemplos de requisição
+
+Os exemplos abaixo usam PowerShell e podem ser testados com o servidor rodando em `http://localhost:3000`.
+
+### Criar conta de cliente
+
+```powershell
+Invoke-RestMethod -Uri http://localhost:3000/api/register `
+  -Method POST `
+  -ContentType "application/json" `
+  -Body '{
+    "name": "Cliente Teste",
+    "lastName": "Prime",
+    "email": "cliente@example.com",
+    "phone": "(54) 99999-9999",
+    "password": "Senha123",
+    "confirmPassword": "Senha123"
+  }'
+```
+
+### Login
+
+```powershell
+Invoke-RestMethod -Uri http://localhost:3000/api/login `
+  -Method POST `
+  -ContentType "application/json" `
+  -Body '{
+    "email": "cliente@example.com",
+    "password": "Senha123"
+  }'
+```
+
+### Buscar produtos
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:3000/api/search?brand=Nike&sort=price_asc" `
+  -Method GET
+```
+
+### Gerar prévia de PIX
+
+```powershell
+Invoke-RestMethod -Uri http://localhost:3000/api/payments/pix-preview `
+  -Method POST `
+  -Headers @{ Authorization = "Bearer SEU_TOKEN_JWT" } `
+  -ContentType "application/json" `
+  -Body '{
+    "items": [
+      {
+        "productId": 1,
+        "quantity": 1,
+        "size": "39"
+      }
+    ],
+    "shipping": {
+      "cep": "99711-170"
+    }
+  }'
+```
+
 ## Swagger
 
 Para usar a documentação local da API, altere no `.env`:

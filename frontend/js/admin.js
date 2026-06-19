@@ -29,6 +29,36 @@ let _currentGalleryImages = [];
 let _isProductFormSaving = false;
 const ADMIN_TIME_ZONE = 'America/Sao_Paulo';
 
+function updateAdminThemeToggle() {
+    const button = document.getElementById('admin-theme-toggle');
+    if (!button) return;
+
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const text = button.querySelector('.admin-theme-toggle__text');
+    button.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+    button.setAttribute('aria-label', isDark ? 'Ativar modo claro' : 'Ativar modo escuro');
+    if (text) text.textContent = isDark ? 'Modo claro' : 'Modo escuro';
+}
+
+function toggleAdminTheme() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const nextTheme = isDark ? 'light' : 'dark';
+
+    if (nextTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+    }
+
+    try {
+        localStorage.setItem('theme', nextTheme);
+    } catch (_) {}
+
+    updateAdminThemeToggle();
+}
+
+document.addEventListener('DOMContentLoaded', updateAdminThemeToggle);
+
 function isTimestampWithExplicitZone(value) {
     return /([zZ]|[+-]\d{2}:?\d{2})$/.test(String(value || '').trim());
 }

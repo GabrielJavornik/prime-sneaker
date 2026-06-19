@@ -258,6 +258,321 @@ const options = {
             },
         },
         paths: {
+            '/api/health': {
+                get: {
+                    tags: ['Health'],
+                    summary: 'Verifica se a API esta online',
+                    responses: {
+                        200: {
+                            description: 'Servico online',
+                            content: {
+                                'application/json': {
+                                    schema: {
+                                        type: 'object',
+                                        properties: {
+                                            status: { type: 'string', example: 'ok' },
+                                            uptime: { type: 'number', example: 120.5 },
+                                            timestamp: { type: 'string', format: 'date-time' },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            '/api/forgot-password': {
+                post: {
+                    tags: ['Autenticacao'],
+                    summary: 'Solicita recuperacao de senha do usuario',
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['email'],
+                                    properties: { email: { type: 'string', example: 'cliente@email.com' } },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        200: { description: 'Link enviado quando o email existe' },
+                        400: { description: 'Email invalido' },
+                    },
+                },
+            },
+            '/api/admin/forgot-password': {
+                post: {
+                    tags: ['Autenticacao', 'Admin'],
+                    summary: 'Solicita recuperacao de senha administrativa',
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['email'],
+                                    properties: { email: { type: 'string', example: 'admin@tenis.com' } },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        200: { description: 'Mensagem generica por seguranca' },
+                        400: { description: 'Email invalido' },
+                    },
+                },
+            },
+            '/api/verify-reset-token/{token}': {
+                get: {
+                    tags: ['Autenticacao'],
+                    summary: 'Valida token de recuperacao do usuario',
+                    parameters: [
+                        { name: 'token', in: 'path', required: true, schema: { type: 'string' } },
+                    ],
+                    responses: {
+                        200: { description: 'Token valido' },
+                        400: { description: 'Token invalido ou expirado' },
+                    },
+                },
+            },
+            '/api/admin/verify-reset-token': {
+                get: {
+                    tags: ['Autenticacao', 'Admin'],
+                    summary: 'Valida token administrativo por query string',
+                    parameters: [
+                        { name: 'token', in: 'query', required: true, schema: { type: 'string' } },
+                    ],
+                    responses: {
+                        200: { description: 'Token valido' },
+                        400: { description: 'Token invalido ou expirado' },
+                    },
+                },
+            },
+            '/api/admin/verify-reset-token/{token}': {
+                get: {
+                    tags: ['Autenticacao', 'Admin'],
+                    summary: 'Valida token administrativo por parametro de rota',
+                    parameters: [
+                        { name: 'token', in: 'path', required: true, schema: { type: 'string' } },
+                    ],
+                    responses: {
+                        200: { description: 'Token valido' },
+                        400: { description: 'Token invalido ou expirado' },
+                    },
+                },
+            },
+            '/api/reset-password': {
+                post: {
+                    tags: ['Autenticacao'],
+                    summary: 'Redefine senha do usuario',
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['token', 'password'],
+                                    properties: {
+                                        token: { type: 'string' },
+                                        password: { type: 'string', example: 'SenhaForte123' },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        200: { description: 'Senha alterada' },
+                        400: { description: 'Token invalido ou senha fraca' },
+                    },
+                },
+            },
+            '/api/admin/reset-password': {
+                post: {
+                    tags: ['Autenticacao', 'Admin'],
+                    summary: 'Redefine senha de admin ou superadmin',
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['token', 'password'],
+                                    properties: {
+                                        token: { type: 'string' },
+                                        password: { type: 'string', example: 'SenhaForte123' },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        200: { description: 'Senha administrativa alterada' },
+                        400: { description: 'Token invalido ou senha fraca' },
+                    },
+                },
+            },
+            '/api/users/profile': {
+                get: {
+                    tags: ['Usuarios'],
+                    summary: 'Retorna perfil do usuario autenticado',
+                    security: [{ bearerAuth: [] }],
+                    responses: {
+                        200: { description: 'Perfil do usuario', content: { 'application/json': { schema: { $ref: '#/components/schemas/User' } } } },
+                        401: { description: 'Token ausente ou invalido' },
+                    },
+                },
+                put: {
+                    tags: ['Usuarios'],
+                    summary: 'Atualiza perfil, telefone, CPF, endereco ou senha',
+                    security: [{ bearerAuth: [] }],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    properties: {
+                                        name: { type: 'string', example: 'Gabriel Novelo' },
+                                        email: { type: 'string', example: 'gabriel@email.com' },
+                                        phone: { type: 'string', example: '(54) 99999-9999' },
+                                        cpf: { type: 'string', example: '000.000.000-00' },
+                                        cep: { type: 'string', example: '99711-170' },
+                                        address: { type: 'object' },
+                                        currentPassword: { type: 'string' },
+                                        newPassword: { type: 'string' },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        200: { description: 'Perfil atualizado' },
+                        400: { description: 'Dados invalidos' },
+                    },
+                },
+            },
+            '/api/products/facets': {
+                get: {
+                    tags: ['Produtos'],
+                    summary: 'Retorna marcas, tamanhos e grupos usados no mega menu',
+                    parameters: [
+                        { name: 'refresh', in: 'query', schema: { type: 'string', enum: ['1', 'true'] } },
+                    ],
+                    responses: {
+                        200: {
+                            description: 'Facets do catalogo',
+                            content: {
+                                'application/json': {
+                                    schema: {
+                                        type: 'object',
+                                        properties: {
+                                            brands: { type: 'array', items: { type: 'string' } },
+                                            launchBrands: { type: 'array', items: { type: 'string' } },
+                                            outletBrands: { type: 'array', items: { type: 'string' } },
+                                            byGender: { type: 'object' },
+                                            sizes: { type: 'array', items: { type: 'string' } },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            '/api/products/images/upload': {
+                post: {
+                    tags: ['Produtos'],
+                    summary: 'Faz upload local de imagem de produto',
+                    security: [{ bearerAuth: [] }, { basicAuth: [] }],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['imageData'],
+                                    properties: {
+                                        imageData: { type: 'string', description: 'Data URL base64 da imagem.' },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        200: { description: 'Imagem enviada' },
+                        400: { description: 'Imagem invalida' },
+                        401: { description: 'Nao autorizado' },
+                    },
+                },
+            },
+            '/api/products/{productId}/reviews': {
+                get: {
+                    tags: ['Avaliacoes'],
+                    summary: 'Lista avaliacoes de um produto',
+                    parameters: [
+                        { name: 'productId', in: 'path', required: true, schema: { type: 'integer' } },
+                    ],
+                    responses: {
+                        200: { description: 'Avaliacoes do produto' },
+                    },
+                },
+                post: {
+                    tags: ['Avaliacoes'],
+                    summary: 'Cria avaliacao do produto pelo usuario logado',
+                    security: [{ bearerAuth: [] }],
+                    parameters: [
+                        { name: 'productId', in: 'path', required: true, schema: { type: 'integer' } },
+                    ],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['rating'],
+                                    properties: {
+                                        rating: { type: 'integer', minimum: 1, maximum: 5, example: 5 },
+                                        comment: { type: 'string', example: 'Produto muito bom.' },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        201: { description: 'Avaliacao criada' },
+                        400: { description: 'Dados invalidos' },
+                    },
+                },
+            },
+            '/api/products/{productId}/rating': {
+                get: {
+                    tags: ['Avaliacoes'],
+                    summary: 'Retorna media e quantidade real de avaliacoes',
+                    parameters: [
+                        { name: 'productId', in: 'path', required: true, schema: { type: 'integer' } },
+                    ],
+                    responses: {
+                        200: { description: 'Resumo de avaliacoes' },
+                    },
+                },
+            },
+            '/api/reviews/{reviewId}': {
+                delete: {
+                    tags: ['Avaliacoes'],
+                    summary: 'Remove avaliacao do usuario logado',
+                    security: [{ bearerAuth: [] }],
+                    parameters: [
+                        { name: 'reviewId', in: 'path', required: true, schema: { type: 'integer' } },
+                    ],
+                    responses: {
+                        200: { description: 'Avaliacao removida' },
+                        403: { description: 'Nao autorizado' },
+                    },
+                },
+            },
             '/api/cart': {
                 get: {
                     tags: ['Carrinho'],
@@ -272,6 +587,22 @@ const options = {
                                 },
                             },
                         },
+                    },
+                },
+                post: {
+                    tags: ['Carrinho'],
+                    summary: 'Calcula subtotal, frete, cupom e total sem criar pedido',
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: { $ref: '#/components/schemas/CheckoutRequest' },
+                            },
+                        },
+                    },
+                    responses: {
+                        200: { description: 'Resumo calculado', content: { 'application/json': { schema: { $ref: '#/components/schemas/CartSummary' } } } },
+                        400: { description: 'Carrinho invalido' },
                     },
                 },
                 delete: {
@@ -363,6 +694,25 @@ const options = {
                     },
                 },
             },
+            '/api/payments/pix-preview': {
+                post: {
+                    tags: ['Pagamentos'],
+                    summary: 'Gera previa do Pix com valor final sem criar pedido',
+                    security: [{ bearerAuth: [] }],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: { $ref: '#/components/schemas/CheckoutRequest' },
+                            },
+                        },
+                    },
+                    responses: {
+                        200: { description: 'Pix de previa gerado', content: { 'application/json': { schema: { $ref: '#/components/schemas/PixInfo' } } } },
+                        400: { description: 'Sem itens para gerar Pix' },
+                    },
+                },
+            },
             '/api/payments/pix/{orderId}': {
                 get: {
                     tags: ['Pagamentos'],
@@ -402,6 +752,25 @@ const options = {
                     },
                 },
             },
+            '/api/orders': {
+                post: {
+                    tags: ['Pedidos'],
+                    summary: 'Cria pedido pela rota legada com recalculo no backend',
+                    security: [{ bearerAuth: [] }],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: { $ref: '#/components/schemas/CheckoutRequest' },
+                            },
+                        },
+                    },
+                    responses: {
+                        201: { description: 'Pedido criado' },
+                        400: { description: 'Dados invalidos' },
+                    },
+                },
+            },
             '/api/orders/my-orders': {
                 get: {
                     tags: ['Pedidos'],
@@ -416,6 +785,28 @@ const options = {
                                 },
                             },
                         },
+                    },
+                },
+            },
+            '/api/orders/pending/cancel-all': {
+                delete: {
+                    tags: ['Pedidos', 'Admin'],
+                    summary: 'Cancela pedidos pendentes/aguardando pagamento',
+                    security: [{ bearerAuth: [] }],
+                    responses: {
+                        200: { description: 'Pedidos cancelados' },
+                        403: { description: 'Acesso restrito a administradores' },
+                    },
+                },
+            },
+            '/api/orders/cancelled/delete-all': {
+                delete: {
+                    tags: ['Pedidos', 'Admin'],
+                    summary: 'Remove pedidos cancelados quando permitido',
+                    security: [{ bearerAuth: [] }],
+                    responses: {
+                        200: { description: 'Pedidos removidos' },
+                        403: { description: 'Acesso restrito a administradores' },
                     },
                 },
             },
@@ -775,6 +1166,81 @@ const options = {
                     },
                 },
             },
+            '/api/reports/summary': {
+                get: {
+                    tags: ['Relatorios'],
+                    summary: 'Resumo de vendas para administradores',
+                    security: [{ bearerAuth: [] }],
+                    parameters: [
+                        { name: 'from', in: 'query', schema: { type: 'string', format: 'date' } },
+                        { name: 'to', in: 'query', schema: { type: 'string', format: 'date' } },
+                    ],
+                    responses: {
+                        200: { description: 'Resumo de vendas' },
+                        403: { description: 'Apenas administradores podem acessar relatorios' },
+                    },
+                },
+            },
+            '/api/reports/top-products': {
+                get: {
+                    tags: ['Relatorios'],
+                    summary: 'Produtos mais vendidos no periodo',
+                    security: [{ bearerAuth: [] }],
+                    parameters: [
+                        { name: 'from', in: 'query', schema: { type: 'string', format: 'date' } },
+                        { name: 'to', in: 'query', schema: { type: 'string', format: 'date' } },
+                    ],
+                    responses: {
+                        200: { description: 'Ranking de produtos' },
+                        403: { description: 'Apenas administradores podem acessar relatorios' },
+                    },
+                },
+            },
+            '/api/reports/monthly-sales': {
+                get: {
+                    tags: ['Relatorios'],
+                    summary: 'Vendas agrupadas por mes',
+                    security: [{ bearerAuth: [] }],
+                    parameters: [
+                        { name: 'from', in: 'query', schema: { type: 'string', format: 'date' } },
+                        { name: 'to', in: 'query', schema: { type: 'string', format: 'date' } },
+                    ],
+                    responses: {
+                        200: { description: 'Vendas mensais' },
+                        403: { description: 'Apenas administradores podem acessar relatorios' },
+                    },
+                },
+            },
+            '/api/reports/full': {
+                get: {
+                    tags: ['Relatorios'],
+                    summary: 'Relatorio completo do dashboard administrativo',
+                    security: [{ bearerAuth: [] }],
+                    parameters: [
+                        { name: 'from', in: 'query', schema: { type: 'string', format: 'date' } },
+                        { name: 'to', in: 'query', schema: { type: 'string', format: 'date' } },
+                    ],
+                    responses: {
+                        200: { description: 'Resumo, produtos mais vendidos e vendas mensais' },
+                        403: { description: 'Apenas administradores podem acessar relatorios' },
+                    },
+                },
+            },
+            '/api/admin-reports/pending-orders': {
+                get: {
+                    tags: ['Admin', 'Relatorios'],
+                    summary: 'Lista pedidos aguardando pagamento no painel',
+                    security: [{ bearerAuth: [] }],
+                    parameters: [
+                        { name: 'from', in: 'query', schema: { type: 'string', format: 'date' } },
+                        { name: 'to', in: 'query', schema: { type: 'string', format: 'date' } },
+                    ],
+                    responses: {
+                        200: { description: 'Pedidos pendentes' },
+                        403: { description: 'Acesso restrito a administradores' },
+                    },
+                },
+            },
             '/api/admin-reports/order-notifications': {
                 get: {
                     tags: ['Admin'],
@@ -785,6 +1251,32 @@ const options = {
                     },
                 },
             },
+            '/api/admin-reports/order-status-summary': {
+                get: {
+                    tags: ['Admin', 'Relatorios'],
+                    summary: 'Resumo de pedidos por status',
+                    security: [{ bearerAuth: [] }],
+                    parameters: [
+                        { name: 'from', in: 'query', schema: { type: 'string', format: 'date' } },
+                        { name: 'to', in: 'query', schema: { type: 'string', format: 'date' } },
+                    ],
+                    responses: {
+                        200: { description: 'Contadores por status' },
+                        403: { description: 'Acesso restrito a administradores' },
+                    },
+                },
+            },
+            '/api/admin-reports/customers': {
+                get: {
+                    tags: ['Admin', 'Relatorios'],
+                    summary: 'Relatorio de clientes com total de pedidos e valor gasto',
+                    security: [{ bearerAuth: [] }],
+                    responses: {
+                        200: { description: 'Relatorio de clientes' },
+                        403: { description: 'Acesso restrito a administradores' },
+                    },
+                },
+            },
             '/api/admin-reports/low-stock': {
                 get: {
                     tags: ['Admin'],
@@ -792,6 +1284,139 @@ const options = {
                     security: [{ bearerAuth: [] }],
                     responses: {
                         200: { description: 'Produtos ordenados por menor estoque' },
+                    },
+                },
+            },
+            '/api/admin-reports/pix-transactions': {
+                get: {
+                    tags: ['Admin', 'Relatorios', 'Pagamentos'],
+                    summary: 'Lista transacoes Pix e estatisticas',
+                    security: [{ bearerAuth: [] }],
+                    parameters: [
+                        { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+                        { name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } },
+                        { name: 'from', in: 'query', schema: { type: 'string', format: 'date' } },
+                        { name: 'to', in: 'query', schema: { type: 'string', format: 'date' } },
+                    ],
+                    responses: {
+                        200: { description: 'Transacoes Pix paginadas' },
+                        403: { description: 'Acesso restrito a administradores' },
+                    },
+                },
+            },
+            '/api/newsletter': {
+                post: {
+                    tags: ['Newsletter'],
+                    summary: 'Inscreve email para receber promocoes',
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['email'],
+                                    properties: { email: { type: 'string', example: 'cliente@email.com' } },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        200: { description: 'Inscricao criada, reativada ou ja existente' },
+                        400: { description: 'Email invalido' },
+                    },
+                },
+            },
+            '/api/newsletter/subscribers': {
+                get: {
+                    tags: ['Newsletter', 'Admin'],
+                    summary: 'Lista inscritos da newsletter',
+                    security: [{ bearerAuth: [] }, { basicAuth: [] }],
+                    responses: {
+                        200: { description: 'Inscritos cadastrados' },
+                        401: { description: 'Nao autorizado' },
+                    },
+                },
+            },
+            '/api/newsletter/subscribers/{id}': {
+                patch: {
+                    tags: ['Newsletter', 'Admin'],
+                    summary: 'Ativa ou desativa inscrito da newsletter',
+                    security: [{ bearerAuth: [] }, { basicAuth: [] }],
+                    parameters: [
+                        { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
+                    ],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['active'],
+                                    properties: { active: { type: 'boolean', example: true } },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        200: { description: 'Inscrito atualizado' },
+                        404: { description: 'Inscrito nao encontrado' },
+                    },
+                },
+            },
+            '/api/newsletter/promotion/test': {
+                post: {
+                    tags: ['Newsletter', 'Admin'],
+                    summary: 'Envia email de teste de promocao',
+                    security: [{ bearerAuth: [] }, { basicAuth: [] }],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['subject', 'title', 'message'],
+                                    properties: {
+                                        subject: { type: 'string', example: 'Oferta Prime Sneaker' },
+                                        title: { type: 'string', example: 'Promocao especial' },
+                                        message: { type: 'string', example: 'Confira as novidades da loja.' },
+                                        couponCode: { type: 'string', example: 'URI10' },
+                                        testEmail: { type: 'string', example: 'admin@tenis.com' },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        200: { description: 'Email de teste enviado' },
+                        400: { description: 'Dados invalidos' },
+                    },
+                },
+            },
+            '/api/newsletter/promotion': {
+                post: {
+                    tags: ['Newsletter', 'Admin'],
+                    summary: 'Envia promocao para inscritos ativos',
+                    security: [{ bearerAuth: [] }, { basicAuth: [] }],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['subject', 'title', 'message'],
+                                    properties: {
+                                        subject: { type: 'string', example: 'Oferta Prime Sneaker' },
+                                        title: { type: 'string', example: 'Promocao especial' },
+                                        message: { type: 'string', example: 'Confira as novidades da loja.' },
+                                        couponCode: { type: 'string', example: 'URI10' },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        200: { description: 'Promocao enviada' },
+                        400: { description: 'Nenhum inscrito ativo ou dados invalidos' },
                     },
                 },
             },

@@ -45,8 +45,45 @@ body[data-page="admin"] {
     color: var(--admin-text);
 }
 
+[data-theme="dark"] body[data-page="admin"] {
+    --admin-bg: #0B1120;
+    --admin-surface: #111827;
+    --admin-sidebar: #020617;
+    --admin-text: #F8FAFC;
+    --admin-muted: #CBD5E1;
+    --admin-primary: #60A5FA;
+    --admin-brand: #D6B23E;
+    --admin-success: #22C55E;
+    --admin-warning: #F59E0B;
+    --admin-danger: #F87171;
+    --admin-border: #334155;
+    --admin-soft: #0F172A;
+    --admin-primary-rgb: 96, 165, 250;
+    --admin-success-rgb: 34, 197, 94;
+    --admin-warning-rgb: 245, 158, 11;
+    --admin-danger-rgb: 248, 113, 113;
+    --primary: #020617;
+    --text: var(--admin-text);
+    --muted: var(--admin-muted);
+    --bg: var(--admin-bg);
+    --card: var(--admin-surface);
+    --card-bg: var(--admin-surface);
+    --surface: var(--admin-surface);
+    --border: var(--admin-border);
+    --bg-soft: var(--admin-soft);
+    --accent: var(--admin-brand);
+    background:
+        radial-gradient(circle at 18% 12%, rgba(214, 178, 62, 0.08), transparent 30%),
+        linear-gradient(180deg, #0B1120 0%, #020617 100%);
+    color: var(--admin-text);
+}
+
 body[data-page="admin"] main {
     background: var(--admin-bg);
+}
+
+[data-theme="dark"] body[data-page="admin"] main {
+    background: transparent;
 }
 
 body[data-page="admin"] .section-title,
@@ -79,6 +116,70 @@ body[data-page="admin"] .admin-sidebar button.active {
     background: var(--admin-primary);
     border-color: var(--admin-primary);
     color: #FFFFFF;
+}
+
+.admin-theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 44px;
+    border: 1px solid rgba(214, 178, 62, 0.32);
+    border-radius: 999px;
+    padding: 0.5rem 0.82rem;
+    background: rgba(255, 255, 255, 0.07);
+    color: #F8FAFC;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.admin-theme-toggle:hover {
+    transform: translateY(-1px);
+    border-color: rgba(214, 178, 62, 0.62);
+    background: rgba(214, 178, 62, 0.14);
+}
+
+.admin-theme-toggle__track {
+    width: 42px;
+    height: 24px;
+    border-radius: 999px;
+    padding: 3px;
+    background: #334155;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+
+.admin-theme-toggle__thumb {
+    display: block;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #F8FAFC;
+    box-shadow: 0 2px 7px rgba(0, 0, 0, 0.28);
+    transform: translateX(0);
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.admin-theme-toggle[aria-pressed="true"] .admin-theme-toggle__track {
+    background: rgba(214, 178, 62, 0.92);
+}
+
+.admin-theme-toggle[aria-pressed="true"] .admin-theme-toggle__thumb {
+    background: #111827;
+    transform: translateX(18px);
+}
+
+.admin-theme-toggle__text {
+    white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+    .admin-theme-toggle {
+        padding: 0.5rem;
+    }
+
+    .admin-theme-toggle__text {
+        display: none;
+    }
 }
 
 body[data-page="admin"] .admin-content,
@@ -138,6 +239,7 @@ body[data-page="admin"] textarea::placeholder {
     .admin-order-action,
     .admin-order-detail-button,
     .admin-client-orders-btn,
+    .admin-theme-toggle,
     .admin-status-chip,
     .order-status-chip,
     .admin-pagination button,
@@ -3242,6 +3344,118 @@ body.admin-booting #footer-placeholder {
     pointer-events: none;
 }
 
+[data-theme="dark"] body[data-page="admin"] .admin-site-header {
+    background:
+        radial-gradient(circle at 12% 18%, rgba(214, 178, 62, 0.12), transparent 28%),
+        linear-gradient(135deg, #020617 0%, #0F172A 58%, #111827 100%);
+    border-bottom-color: rgba(214, 178, 62, 0.2);
+}
+
+[data-theme="dark"] body[data-page="admin"] .section-title,
+[data-theme="dark"] body[data-page="admin"] .admin-content h2,
+[data-theme="dark"] body[data-page="admin"] .admin-content h3,
+[data-theme="dark"] body[data-page="admin"] .admin-content h4,
+[data-theme="dark"] body[data-page="admin"] .admin-content label,
+[data-theme="dark"] body[data-page="admin"] .admin-content strong {
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] body[data-page="admin"] .admin-content,
+[data-theme="dark"] body[data-page="admin"] .dash-card,
+[data-theme="dark"] body[data-page="admin"] .dash-chart-box,
+[data-theme="dark"] body[data-page="admin"] .dash-section,
+[data-theme="dark"] body[data-page="admin"] .admin-table-wrapper,
+[data-theme="dark"] body[data-page="admin"] .admin-products-table-card,
+[data-theme="dark"] body[data-page="admin"] .admin-products-form-card,
+[data-theme="dark"] body[data-page="admin"] .card-form,
+[data-theme="dark"] body[data-page="admin"] .modal-content,
+[data-theme="dark"] body[data-page="admin"] .confirm-modal-content {
+    background: var(--admin-surface);
+    border-color: var(--admin-border);
+    color: var(--admin-text);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.32);
+}
+
+[data-theme="dark"] body[data-page="admin"] .admin-table-wrapper table,
+[data-theme="dark"] body[data-page="admin"] table {
+    background: var(--admin-surface);
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] body[data-page="admin"] thead,
+[data-theme="dark"] body[data-page="admin"] th {
+    background: #0F172A;
+    color: #F8FAFC;
+    border-color: var(--admin-border);
+}
+
+[data-theme="dark"] body[data-page="admin"] td,
+[data-theme="dark"] body[data-page="admin"] tbody tr {
+    border-color: var(--admin-border);
+}
+
+[data-theme="dark"] body[data-page="admin"] tbody tr:nth-child(even) {
+    background: rgba(15, 23, 42, 0.55);
+}
+
+[data-theme="dark"] body[data-page="admin"] input,
+[data-theme="dark"] body[data-page="admin"] select,
+[data-theme="dark"] body[data-page="admin"] textarea {
+    background: #0F172A;
+    border-color: var(--admin-border);
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] body[data-page="admin"] input::placeholder,
+[data-theme="dark"] body[data-page="admin"] textarea::placeholder {
+    color: #94A3B8;
+}
+
+[data-theme="dark"] body[data-page="admin"] option {
+    background: #0F172A;
+    color: #F8FAFC;
+}
+
+[data-theme="dark"] body[data-page="admin"] .user-dropdown {
+    background: #111827;
+    border-color: var(--admin-border);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="dark"] body[data-page="admin"] .user-dropdown a {
+    color: #E2E8F0;
+}
+
+[data-theme="dark"] body[data-page="admin"] .user-dropdown a:hover {
+    background: rgba(96, 165, 250, 0.14);
+    color: #F8FAFC;
+}
+
+[data-theme="dark"] body[data-page="admin"] .admin-menu-divider,
+[data-theme="dark"] body[data-page="admin"] .user-dropdown hr {
+    border-top-color: var(--admin-border) !important;
+}
+
+[data-theme="dark"] body[data-page="admin"] .admin-center-muted,
+[data-theme="dark"] body[data-page="admin"] .page-summary,
+[data-theme="dark"] body[data-page="admin"] .dash-card .label,
+[data-theme="dark"] body[data-page="admin"] .admin-content p,
+[data-theme="dark"] body[data-page="admin"] .admin-content small {
+    color: var(--admin-muted);
+}
+
+[data-theme="dark"] body[data-page="admin"] .admin-pagination button {
+    background: #0F172A;
+    border-color: var(--admin-border);
+    color: #F8FAFC;
+}
+
+[data-theme="dark"] body[data-page="admin"] .admin-pagination button.active {
+    background: #F8FAFC;
+    border-color: #F8FAFC;
+    color: #020617;
+}
+
 [data-theme="dark"] .admin-attention-card {
     background: #171d26;
     border-color: #2d3745;
@@ -3597,6 +3811,64 @@ body.admin-booting #footer-placeholder {
 
 [data-theme="dark"] .admin-product-form-section-head > span {
     background: #2563eb;
+}
+
+[data-theme="dark"] body[data-page="admin"] .order-status-chip.is-awaiting,
+[data-theme="dark"] body[data-page="admin"] .order-status-chip.is-awaiting.active,
+[data-theme="dark"] body[data-page="admin"] .admin-order-status.is-awaiting {
+    background: rgba(245, 158, 11, 0.16);
+    border-color: rgba(251, 191, 36, 0.42);
+    color: #FDE68A !important;
+}
+
+[data-theme="dark"] body[data-page="admin"] .order-status-chip.is-processing,
+[data-theme="dark"] body[data-page="admin"] .order-status-chip.is-processing.active,
+[data-theme="dark"] body[data-page="admin"] .admin-order-status.is-processing {
+    background: rgba(245, 158, 11, 0.14);
+    border-color: rgba(251, 191, 36, 0.36);
+    color: #FDBA74 !important;
+}
+
+[data-theme="dark"] body[data-page="admin"] .order-status-chip.is-shipped,
+[data-theme="dark"] body[data-page="admin"] .order-status-chip.is-shipped.active,
+[data-theme="dark"] body[data-page="admin"] .admin-order-status.is-shipped {
+    background: rgba(96, 165, 250, 0.16);
+    border-color: rgba(147, 197, 253, 0.42);
+    color: #BFDBFE !important;
+}
+
+[data-theme="dark"] body[data-page="admin"] .order-status-chip.is-delivered,
+[data-theme="dark"] body[data-page="admin"] .order-status-chip.is-delivered.active,
+[data-theme="dark"] body[data-page="admin"] .admin-order-status.is-delivered {
+    background: rgba(34, 197, 94, 0.16);
+    border-color: rgba(74, 222, 128, 0.42);
+    color: #86EFAC !important;
+}
+
+[data-theme="dark"] body[data-page="admin"] .order-status-chip.is-canceled,
+[data-theme="dark"] body[data-page="admin"] .order-status-chip.is-canceled.active,
+[data-theme="dark"] body[data-page="admin"] .admin-order-status.is-canceled {
+    background: rgba(248, 113, 113, 0.16);
+    border-color: rgba(252, 165, 165, 0.42);
+    color: #FECACA !important;
+}
+
+[data-theme="dark"] body[data-page="admin"] .admin-access-summary span {
+    background: rgba(148, 163, 184, 0.14);
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    color: #CBD5E1 !important;
+}
+
+[data-theme="dark"] body[data-page="admin"] .admin-access-summary .is-superadmin {
+    background: rgba(214, 178, 62, 0.18);
+    border-color: rgba(214, 178, 62, 0.42);
+    color: #FDE68A !important;
+}
+
+[data-theme="dark"] body[data-page="admin"] .admin-access-summary .is-current-admin {
+    background: rgba(96, 165, 250, 0.18);
+    border-color: rgba(147, 197, 253, 0.42);
+    color: #BFDBFE !important;
 }
 
 .admin-image-upload-row {
