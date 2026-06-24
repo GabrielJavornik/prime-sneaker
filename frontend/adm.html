@@ -685,24 +685,35 @@
                             </aside>
                         </div>
 
-                        <h3>Inscritos</h3>
-                        <p class="admin-section-description">
-                            Marque quem deve receber os e-mails de promo&ccedil;&atilde;o.
-                        </p>
-                        <div class="admin-table-wrapper admin-table-min-620" tabindex="0" aria-label="Tabela de inscritos da newsletter">
-                            <table id="newsletter-table">
-                                <thead>
-                                    <tr>
-                                        <th>Email</th>
-                                        <th>Status</th>
-                                        <th>Inscri&ccedil;&atilde;o</th>
-                                        <th>A&ccedil;&otilde;es</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr><td colspan="4" class="admin-muted-loading">Carregando...</td></tr>
-                                </tbody>
-                            </table>
+                        <div class="admin-newsletter-list-card">
+                            <div class="admin-newsletter-list-head">
+                                <div>
+                                    <span class="admin-newsletter-kicker">Newsletter</span>
+                                    <h3>Inscritos</h3>
+                                    <p class="admin-section-description">
+                                        Controle quem recebe as promo&ccedil;&otilde;es e cupons enviados pelo painel.
+                                    </p>
+                                </div>
+                                <div class="admin-newsletter-count-pill">
+                                    <strong id="newsletter-table-count">0</strong>
+                                    <span>contato(s)</span>
+                                </div>
+                            </div>
+                            <div class="admin-table-wrapper admin-table-wrapper-compact admin-newsletter-table-wrapper admin-table-min-620" tabindex="0" aria-label="Tabela de inscritos da newsletter">
+                                <table id="newsletter-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Email</th>
+                                            <th>Status</th>
+                                            <th>Inscri&ccedil;&atilde;o</th>
+                                            <th>A&ccedil;&otilde;es</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr><td colspan="4" class="admin-muted-loading">Carregando...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
 

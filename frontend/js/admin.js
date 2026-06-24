@@ -1002,6 +1002,7 @@ async function loadNewsletterSubscribers() {
     const tbody = document.querySelector('#newsletter-table tbody');
     const countEl = document.getElementById('newsletter-count');
     const recipientCountEl = document.getElementById('promo-recipient-count');
+    const tableCountEl = document.getElementById('newsletter-table-count');
     if (!countEl && !recipientCountEl && !tbody) return;
 
     try {
@@ -1010,33 +1011,48 @@ async function loadNewsletterSubscribers() {
         _newsletterActiveCount = activeCount;
         if (countEl) countEl.textContent = activeCount;
         if (recipientCountEl) recipientCountEl.textContent = activeCount;
+        if (tableCountEl) tableCountEl.textContent = subscribers.length;
         updatePromotionPreview();
 
         if (!tbody) return;
 
         if (!subscribers.length) {
-            tbody.innerHTML = '<tr><td colspan="4" style="color: var(--muted); text-align: center;">Nenhum inscrito ainda.</td></tr>';
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4">
+                        <div class="newsletter-empty-state">
+                            <strong>Nenhum inscrito ainda</strong>
+                            <span>Os e-mails cadastrados na newsletter aparecer&atilde;o aqui.</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
             return;
         }
 
         tbody.innerHTML = subscribers.map(sub => {
             const created = formatAdminDate(sub.created_at);
             const status = sub.active
-                ? '<span class="admin-status-chip status-delivered">Recebe</span>'
-                : '<span class="admin-status-chip status-cancelled">Não recebe</span>';
+                ? '<span class="newsletter-status-badge is-active">Recebe</span>'
+                : '<span class="newsletter-status-badge is-paused">Pausado</span>';
             const nextActive = sub.active ? 'false' : 'true';
             const actionLabel = sub.active ? 'Não receber' : 'Receber';
-            const actionClass = sub.active ? 'btn-delete' : 'btn-primary';
+            const actionClass = sub.active ? 'is-danger' : 'is-success';
 
             return `
-                <tr>
-                    <td><strong>${escapeHTML(sub.email)}</strong></td>
+                <tr class="newsletter-subscriber-row">
+                    <td>
+                        <div class="newsletter-email-cell">
+                            <span class="newsletter-avatar">${escapeHTML(String(sub.email || '?').charAt(0).toUpperCase())}</span>
+                            <strong>${escapeHTML(sub.email)}</strong>
+                        </div>
+                    </td>
                     <td>${status}</td>
                     <td>${created}</td>
                     <td>
                         <button
                             type="button"
-                            class="${actionClass}"
+                            class="newsletter-action-btn ${actionClass}"
                             onclick="toggleNewsletterSubscriber(${Number(sub.id)}, ${nextActive})"
                         >
                             ${actionLabel}

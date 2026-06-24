@@ -2126,6 +2126,204 @@ body[data-page="admin"] #audit-logs-table .audit-details pre {
     text-decoration: none;
 }
 
+.admin-newsletter-list-card {
+    margin-top: 1.5rem;
+    border: 1px solid var(--border, #e5e5e5);
+    border-radius: 20px;
+    background:
+        radial-gradient(circle at 8% 0%, rgba(var(--admin-brand-rgb), 0.12), transparent 34%),
+        var(--card-bg, #fff);
+    padding: clamp(1rem, 1.8vw, 1.35rem);
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
+}
+
+.admin-newsletter-list-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.admin-newsletter-list-head h3 {
+    margin: 0.25rem 0 0;
+}
+
+.admin-newsletter-list-head .admin-section-description {
+    margin: 0.35rem 0 0;
+}
+
+.admin-newsletter-kicker {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    background: rgba(var(--admin-brand-rgb), 0.16);
+    color: #7a5a00;
+    padding: 0.32rem 0.7rem;
+    font-size: 0.72rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.admin-newsletter-count-pill {
+    display: inline-grid;
+    min-width: 112px;
+    justify-items: center;
+    border: 1px solid rgba(var(--admin-primary-rgb), 0.16);
+    border-radius: 18px;
+    background: rgba(var(--admin-primary-rgb), 0.07);
+    padding: 0.72rem 0.95rem;
+    color: var(--admin-muted);
+}
+
+.admin-newsletter-count-pill strong {
+    color: var(--admin-primary);
+    font-size: 1.7rem;
+    line-height: 1;
+}
+
+.admin-newsletter-count-pill span {
+    margin-top: 0.18rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.admin-newsletter-table-wrapper {
+    border-radius: 16px;
+    box-shadow: none;
+}
+
+body[data-page="admin"] #newsletter-table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+body[data-page="admin"] #newsletter-table th {
+    font-size: 0.76rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+body[data-page="admin"] #newsletter-table td {
+    vertical-align: middle;
+}
+
+.newsletter-subscriber-row {
+    transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.newsletter-subscriber-row:hover {
+    background: rgba(var(--admin-primary-rgb), 0.04);
+}
+
+.newsletter-email-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.newsletter-email-cell strong {
+    overflow-wrap: anywhere;
+}
+
+.newsletter-avatar {
+    display: inline-grid;
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+    place-items: center;
+    border-radius: 13px;
+    background: linear-gradient(135deg, var(--admin-sidebar), #1E293B);
+    color: var(--admin-brand);
+    font-size: 0.9rem;
+    font-weight: 950;
+    text-transform: uppercase;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
+}
+
+.newsletter-status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 96px;
+    border-radius: 999px;
+    padding: 0.48rem 0.75rem;
+    font-size: 0.82rem;
+    font-weight: 950;
+}
+
+.newsletter-status-badge.is-active {
+    background: rgba(var(--admin-success-rgb), 0.12);
+    color: var(--admin-success);
+}
+
+.newsletter-status-badge.is-paused {
+    background: rgba(var(--admin-danger-rgb), 0.1);
+    color: var(--admin-danger);
+}
+
+.newsletter-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 0.58rem 0.95rem;
+    font-weight: 950;
+    cursor: pointer;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+    white-space: nowrap;
+}
+
+.newsletter-action-btn:hover {
+    transform: translateY(-1px);
+}
+
+.newsletter-action-btn.is-danger {
+    border-color: rgba(var(--admin-danger-rgb), 0.22);
+    background: rgba(var(--admin-danger-rgb), 0.1);
+    color: var(--admin-danger);
+}
+
+.newsletter-action-btn.is-danger:hover {
+    background: var(--admin-danger);
+    color: #fff;
+    box-shadow: 0 12px 24px rgba(var(--admin-danger-rgb), 0.18);
+}
+
+.newsletter-action-btn.is-success {
+    border-color: rgba(var(--admin-success-rgb), 0.22);
+    background: rgba(var(--admin-success-rgb), 0.12);
+    color: var(--admin-success);
+}
+
+.newsletter-action-btn.is-success:hover {
+    background: var(--admin-success);
+    color: #fff;
+    box-shadow: 0 12px 24px rgba(var(--admin-success-rgb), 0.18);
+}
+
+.newsletter-empty-state {
+    display: grid;
+    justify-items: center;
+    gap: 0.25rem;
+    padding: 1.4rem 1rem;
+    text-align: center;
+    color: var(--admin-muted);
+}
+
+.newsletter-empty-state strong {
+    color: var(--admin-text);
+    font-size: 1rem;
+}
+
+.newsletter-empty-state span {
+    font-size: 0.92rem;
+}
+
 .admin-customer-summary .dash-card {
     border-radius: 14px;
 }
@@ -3518,6 +3716,7 @@ body.admin-booting #footer-placeholder {
 
 [data-theme="dark"] .admin-products-table-card,
 [data-theme="dark"] .admin-products-form-card,
+[data-theme="dark"] .admin-newsletter-list-card,
 [data-theme="dark"] .admin-coupon-drawer,
 [data-theme="dark"] .admin-admin-drawer {
     background: #171d26;
@@ -3566,6 +3765,30 @@ body.admin-booting #footer-placeholder {
 [data-theme="dark"] .admin-promotion-preview {
     background: #171d26;
     border-color: #2d3745;
+}
+
+[data-theme="dark"] .admin-newsletter-kicker {
+    background: rgba(250, 204, 21, 0.12);
+    color: #facc15;
+}
+
+[data-theme="dark"] .admin-newsletter-count-pill {
+    background: rgba(96, 165, 250, 0.1);
+    border-color: rgba(96, 165, 250, 0.24);
+}
+
+[data-theme="dark"] .newsletter-subscriber-row:hover {
+    background: rgba(96, 165, 250, 0.08);
+}
+
+[data-theme="dark"] .newsletter-avatar {
+    background: #020617;
+    color: #facc15;
+    box-shadow: none;
+}
+
+[data-theme="dark"] .newsletter-empty-state strong {
+    color: #f8fafc;
 }
 
 [data-theme="dark"] .promo-preview-body h3 {
@@ -4101,5 +4324,20 @@ body.admin-booting #footer-placeholder {
     .admin-product-drawer .admin-form-actions .admin-cancel-button,
     .admin-admin-drawer .admin-form-actions .admin-cancel-button {
         order: 2;
+    }
+
+    .admin-newsletter-list-head {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .admin-newsletter-count-pill {
+        min-width: 0;
+        width: 100%;
+        justify-items: start;
+    }
+
+    .newsletter-action-btn {
+        width: 100%;
     }
 }

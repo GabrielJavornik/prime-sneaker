@@ -625,10 +625,10 @@
                 `;
                 }).join('');
 
-                const orderId = safePositiveInt(order.id);
+                const detailOrderId = safePositiveInt(order.id);
 
                 document.getElementById('modal-content').innerHTML = `
-                    <h2>Pedido #${orderId}</h2>
+                    <h2>Pedido #${detailOrderId}</h2>
                     <p style="color: var(--muted); margin-bottom: 1.5rem;">Data: ${new Date(order.created_at).toLocaleDateString('pt-BR')} às ${new Date(order.created_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}</p>
 
                     <h3 style="margin-top: 2rem; margin-bottom: 1rem;">Status do Pedido</h3>
